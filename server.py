@@ -289,7 +289,24 @@ def init_db():
             con.execute("INSERT INTO reviews VALUES(?,?,?,?,?,?,1,CURRENT_TIMESTAMP)", ("rev_seed_2", "p2", 5, "عميلة", "", "التنظيف ممتاز والموعد واضح"))
         con.execute(
             "INSERT OR IGNORE INTO settings VALUES('platform', ?)",
-            (jdump({"nameAr": "فوراً", "nameEn": "Fawran", "adminWhatsapp": "96890000000", "monthlyGoal": 500}),),
+            (jdump({
+                "nameAr": "فوراً",
+                "nameEn": "Fawran",
+                "adminWhatsapp": "96890000000",
+                "monthlyGoal": 500,
+                "uiMode": "simple",
+                "showHeroImage": True,
+                "showQuickActions": True,
+                "showCategories": True,
+                "showPopularServices": True,
+                "showTopProviders": True,
+                "showProviderShortcut": True,
+                "showAdminShortcut": False,
+                "showQualityBadge": True,
+                "maxHomeCategories": 6,
+                "maxPopularServices": 4,
+                "maxHomeProviders": 2,
+            }),),
         )
         con.execute("INSERT OR IGNORE INTO settings VALUES('adminHash', ?)", (ADMIN_HASH,))
         if con.execute("SELECT COUNT(*) n FROM admin_users").fetchone()["n"] == 0:
