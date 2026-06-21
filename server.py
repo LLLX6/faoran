@@ -388,6 +388,10 @@ def row_audit(r):
     return dict(r)
 
 
+def row_lead(r):
+    return dict(r)
+
+
 def log_audit(con, session, action, target="", detail=""):
     actor_kind = (session or {}).get("kind", "system")
     actor_id = (session or {}).get("id") or (session or {}).get("providerId") or "system"
@@ -465,16 +469,18 @@ def get_bootstrap(session=None):
             subscriptions = [row_subscription(r) for r in con.execute("SELECT * FROM subscriptions ORDER BY created_at DESC")]
             payments = [row_payment(r) for r in con.execute("SELECT * FROM payments ORDER BY created_at DESC")]
             audits = [row_audit(r) for r in con.execute("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 80")]
+            leads = [row_lead(r) for r in con.execute("SELECT * FROM leads ORDER BY created_at DESC LIMIT 120")]
         elif is_provider:
             pid = session["providerId"]
             reviews = [row_review(r) for r in con.execute("SELECT * FROM reviews WHERE provider_id=? AND approved=1 ORDER BY created_at DESC", (pid,))]
             complaints = [row_complaint(r) for r in con.execute("SELECT * FROM complaints WHERE provider_id=? ORDER BY created_at DESC", (pid,))]
             subscriptions = [row_subscription(r) for r in con.execute("SELECT * FROM subscriptions WHERE provider_id=? ORDER BY created_at DESC", (pid,))]
             payments = [row_payment(r) for r in con.execute("SELECT * FROM payments WHERE provider_id=? ORDER BY created_at DESC", (pid,))]
+            leads = [row_lead(r) for r in con.execute("SELECT * FROM leads WHERE provider_id=? ORDER BY created_at DESC LIMIT 80", (pid,))]
             audits = []
         else:
             reviews = [row_review(r) for r in con.execute("SELECT * FROM reviews WHERE approved=1 ORDER BY created_at DESC")]
-            complaints, subscriptions, payments, audits = [], [], [], []
+            complaints, subscriptions, payments, audits, leads = [], [], [], [], []
         payment_revenue = con.execute("SELECT COALESCE(SUM(amount),0) n FROM payments WHERE kind='revenue' AND status='paid'").fetchone()["n"]
         finance_revenue = con.execute("SELECT COALESCE(SUM(amount),0) n FROM finance WHERE kind='revenue'").fetchone()["n"]
         stats = {
@@ -513,6 +519,7 @@ def get_bootstrap(session=None):
             "packages": packages,
             "subscriptions": subscriptions,
             "payments": payments,
+            "leads": leads,
             "auditLogs": audits,
             "settings": settings,
             "stats": stats,
@@ -900,13 +907,16 @@ class Handler(SimpleHTTPRequestHandler):
         return self.send_json({"ok": True, "complaint": item}, 201)
 
     def save_lead(self, data):
+        kind = data.get("kind", "whatsapp")
+        if kind not in ("request", "views", "whatsapp", "calls", "booking", "quote"):
+            kind = "request"
         item = {
             "id": slug("lead"),
-            "provider_id": data.get("providerId"),
-            "kind": data.get("kind", "whatsapp"),
-            "customer_name": data.get("customerName", ""),
-            "phone": data.get("phone", ""),
-            "note": data.get("note", ""),
+            "provider_id": (data.get("providerId") or "")[:80],
+            "kind": kind,
+            "customer_name": (data.get("customerName", "") or "").strip()[:80],
+            "phone": (data.get("phone", "") or "").strip()[:30],
+            "note": (data.get("note", "") or "").strip()[:1200],
         }
         with db() as con:
             con.execute("INSERT INTO leads VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP)", tuple(item.values()))
