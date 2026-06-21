@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 360" role="img" aria-label="خدمات فوراً">
+  <defs>
+    <linearGradient id="bg" x1="42" y1="23" x2="456" y2="329" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f9fcff"/>
+      <stop offset="1" stop-color="#e8f7f4"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="127" y1="72" x2="398" y2="291" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0b2440"/>
+      <stop offset=".58" stop-color="#146c94"/>
+      <stop offset="1" stop-color="#18a889"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="218" y1="82" x2="305" y2="239" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe9a6"/>
+      <stop offset="1" stop-color="#f2b632"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#102a43" flood-opacity=".16"/>
+    </filter>
+  </defs>
+  <rect x="18" y="22" width="484" height="316" rx="44" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <rect x="170" y="77" width="180" height="180" rx="48" fill="url(#brand)"/>
+    <path d="M296 105 222 203h41l-20 82 73-107h-40l20-73Z" fill="url(#gold)"/>
+    <path d="M211 139c18-18 41-27 67-27 39 0 66 23 66 56 0 36-30 62-73 62h-24v37h-35v-75h56c22 0 34-10 34-24 0-15-11-24-29-24-15 0-28 6-39 17l-23-22Z" fill="#fff" opacity=".96"/>
+  </g>
+  <g fill="#fff" stroke="#dbe5ef" stroke-width="2" filter="url(#shadow)">
+    <rect x="54" y="72" width="118" height="82" rx="24"/>
+    <rect x="348" y="75" width="118" height="82" rx="24"/>
+    <rect x="58" y="219" width="124" height="82" rx="24"/>
+    <rect x="338" y="221" width="124" height="82" rx="24"/>
+  </g>
+  <g fill="none" stroke="#146c94" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M96 119h34M113 102v34"/>
+    <path d="M386 111h44M386 133h44"/>
+    <path d="M96 263h49M111 246l-15 17 15 17"/>
+    <path d="M386 250h34l18 28"/>
+  </g>
+  <g fill="#18a889">
+    <circle cx="411" cy="278" r="9"/>
+    <circle cx="447" cy="278" r="9"/>
+  </g>
+</svg>

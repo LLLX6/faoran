@@ -1,7 +1,8 @@
 {
   "name": "فوراً",
   "short_name": "فوراً",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f5f7fb",
   "theme_color": "#102a43",
@@ -9,7 +10,7 @@
   "lang": "ar",
   "icons": [
     {
-      "src": "/logo.svg",
+      "src": "logo.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
