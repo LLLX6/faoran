@@ -4,6 +4,7 @@ from pathlib import Path
 import base64
 import hashlib
 import json
+import mimetypes
 import os
 import secrets
 import sqlite3
@@ -13,7 +14,7 @@ import urllib.request
 
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
-UPLOAD_DIR = PUBLIC_DIR / "uploads"
+UPLOAD_DIR = Path(os.environ.get("FORAN_UPLOAD_DIR") or (PUBLIC_DIR / "uploads"))
 DB_PATH = Path(os.environ.get("FORAN_DB_PATH") or (BASE_DIR / "foran.sqlite3"))
 ADMIN_CODE = os.environ.get("FORAN_ADMIN_CODE", "1995")
 ADMIN_HASH = hashlib.sha256(ADMIN_CODE.encode("utf-8")).hexdigest()
@@ -404,8 +405,9 @@ def save_data_url(provider_id, image_data):
     if len(blob) > 2_500_000:
         raise ValueError("image_too_large")
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    rel = f"uploads/{provider_id}.{ext}"
-    (PUBLIC_DIR / rel).write_bytes(blob)
+    filename = f"{provider_id}.{ext}"
+    rel = f"uploads/{filename}"
+    (UPLOAD_DIR / filename).write_bytes(blob)
     return rel
 
 
@@ -486,8 +488,28 @@ class Handler(SimpleHTTPRequestHandler):
             return None
         return session
 
+    def send_upload(self, path):
+        filename = path.removeprefix("/uploads/")
+        if not filename or "/" in filename or "\\" in filename:
+            return self.send_error(404)
+        target = (UPLOAD_DIR / filename).resolve()
+        try:
+            target.relative_to(UPLOAD_DIR.resolve())
+        except ValueError:
+            return self.send_error(404)
+        if not target.is_file():
+            return self.send_error(404)
+        self.send_response(200)
+        self.send_header("Content-Type", mimetypes.guess_type(str(target))[0] or "application/octet-stream")
+        self.send_header("Content-Length", str(target.stat().st_size))
+        self.end_headers()
+        with target.open("rb") as f:
+            self.copyfile(f, self.wfile)
+
     def do_GET(self):
         path = urlparse(self.path).path
+        if path.startswith("/uploads/"):
+            return self.send_upload(path)
         if path == "/api/classic-state":
             state = get_classic_state()
             return self.send_json({"ok": True, "state": state})

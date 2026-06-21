@@ -73,6 +73,7 @@ python server.py
 - `startCommand`: `python server.py`
 - `HOST=0.0.0.0` حتى يقبل الخادم زيارات الإنترنت.
 - `FORAN_DB_PATH=/var/data/foran.sqlite3` لحفظ قاعدة البيانات على قرص دائم.
+- `FORAN_UPLOAD_DIR=/var/data/uploads` لحفظ صور المزودين على قرص دائم.
 - قرص دائم باسم `faoran-data` على المسار `/var/data`.
 
 خطوات Render:
