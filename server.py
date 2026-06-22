@@ -86,54 +86,97 @@ def iso_date(days=0):
     return (datetime.now(UTC) + timedelta(days=days)).strftime("%Y-%m-%d")
 
 
+def seed_service(service_id, icon, ar, en):
+    return {"id": service_id, "icon": icon, "ar": ar, "en": en, "active": 1}
+
+
+def seed_category(cat_id, icon, ar, en, services):
+    return {"id": cat_id, "icon": icon, "ar": ar, "en": en, "active": 1, "services": services}
+
+
 SEED_CATEGORIES = [
-    {
-        "id": "homecare",
-        "icon": "🏠",
-        "ar": "صيانة المنزل",
-        "en": "Home maintenance",
-        "active": 1,
-        "services": [
-            {"id": "electrician", "icon": "⚡", "ar": "كهربائي", "en": "Electrician", "active": 1},
-            {"id": "plumber", "icon": "🚿", "ar": "سباك", "en": "Plumber", "active": 1},
-            {"id": "ac", "icon": "❄️", "ar": "صيانة مكيفات", "en": "AC maintenance", "active": 1},
-            {"id": "appliances", "icon": "🔧", "ar": "صيانة أجهزة منزلية", "en": "Home appliances", "active": 1},
-        ],
-    },
-    {
-        "id": "cleaning",
-        "icon": "🧼",
-        "ar": "التنظيف",
-        "en": "Cleaning",
-        "active": 1,
-        "services": [
-            {"id": "home_clean", "icon": "🏡", "ar": "تنظيف منازل", "en": "Home cleaning", "active": 1},
-            {"id": "sofa", "icon": "🛋️", "ar": "تنظيف كنب", "en": "Sofa cleaning", "active": 1},
-            {"id": "carpet", "icon": "🧽", "ar": "تنظيف سجاد", "en": "Carpet cleaning", "active": 1},
-        ],
-    },
-    {
-        "id": "moving",
-        "icon": "🚚",
-        "ar": "النقل",
-        "en": "Moving",
-        "active": 1,
-        "services": [
-            {"id": "furniture_move", "icon": "🚛", "ar": "نقل أثاث", "en": "Furniture moving", "active": 1},
-            {"id": "delivery", "icon": "📦", "ar": "توصيل", "en": "Delivery", "active": 1},
-        ],
-    },
-    {
-        "id": "cars",
-        "icon": "🚗",
-        "ar": "السيارات",
-        "en": "Cars",
-        "active": 1,
-        "services": [
-            {"id": "car_wash", "icon": "🫧", "ar": "غسيل سيارات", "en": "Car wash", "active": 1},
-            {"id": "mechanic", "icon": "🔩", "ar": "ميكانيكي", "en": "Mechanic", "active": 1},
-        ],
-    },
+    seed_category("homecare", "🏠", "صيانة المنزل", "Home maintenance", [
+        seed_service("electrician", "⚡", "كهربائي", "Electrician"), seed_service("plumber", "🚿", "سباك", "Plumber"),
+        seed_service("ac", "❄️", "صيانة مكيفات", "AC maintenance"), seed_service("appliances", "🔧", "صيانة أجهزة منزلية", "Home appliances"),
+        seed_service("curtains", "🪟", "تركيب ستائر", "Curtain installation"), seed_service("furniture", "🪑", "تركيب أثاث", "Furniture assembly"),
+        seed_service("paint", "🎨", "دهان", "Painting"), seed_service("gypsum", "◻️", "جبس وديكور", "Gypsum and decor"),
+        seed_service("pest", "🐜", "مكافحة حشرات", "Pest control"), seed_service("tanks", "💧", "تنظيف خزانات", "Tank cleaning"),
+        seed_service("doors", "🚪", "تصليح أبواب وأقفال", "Doors and locks"), seed_service("gardens", "🌿", "تنسيق حدائق", "Garden care"),
+        seed_service("pools", "🏊", "صيانة مسابح", "Pool maintenance"), seed_service("satellite", "📡", "تركيب دش وستلايت", "Satellite installation"),
+        seed_service("smart_home", "🏡", "أنظمة منزل ذكي", "Smart home systems"), seed_service("water_heater", "♨️", "صيانة سخانات", "Water heater repair"),
+    ]),
+    seed_category("cleaning", "🧼", "التنظيف", "Cleaning", [
+        seed_service("home_clean", "🏡", "تنظيف منازل", "Home cleaning"), seed_service("apt_clean", "🏢", "تنظيف شقق", "Apartment cleaning"),
+        seed_service("majlis", "🛋️", "تنظيف مجالس", "Majlis cleaning"), seed_service("sofa", "🛋️", "تنظيف كنب", "Sofa cleaning"),
+        seed_service("carpet", "🧽", "تنظيف سجاد", "Carpet cleaning"), seed_service("post_build", "🏗️", "تنظيف بعد البناء", "Post-construction cleaning"),
+        seed_service("office_clean", "🏬", "تنظيف مكاتب", "Office cleaning"), seed_service("facade", "🪟", "تنظيف واجهات", "Facade cleaning"),
+        seed_service("deep_clean", "🧴", "تنظيف عميق", "Deep cleaning"), seed_service("kitchen_clean", "🍽️", "تنظيف مطابخ", "Kitchen cleaning"),
+        seed_service("bath_clean", "🚿", "تنظيف دورات مياه", "Bathroom cleaning"), seed_service("mattress", "🛏️", "تنظيف مراتب", "Mattress cleaning"),
+        seed_service("sterilize", "🛡️", "تعقيم", "Sanitization"), seed_service("maid_hourly", "⏱️", "عاملة بالساعة", "Hourly cleaner"),
+    ]),
+    seed_category("transport", "🚚", "النقل والتوصيل", "Moving and delivery", [
+        seed_service("furniture_move", "🚚", "نقل أثاث", "Furniture moving"), seed_service("items_delivery", "📦", "توصيل أغراض", "Item delivery"),
+        seed_service("within_wilayah", "🛻", "نقل داخل الولاية", "Within-wilayah moving"), seed_service("between_gov", "🛣️", "نقل بين المحافظات", "Inter-governorate moving"),
+        seed_service("loading", "📦", "تحميل وتنزيل", "Loading and unloading"), seed_service("private_driver", "🚗", "سائق خاص", "Private driver"),
+        seed_service("small_truck", "🚛", "شاحنة صغيرة", "Small truck"), seed_service("large_truck", "🚛", "شاحنة كبيرة", "Large truck"),
+        seed_service("cold_delivery", "❄️", "توصيل مبرد", "Cold delivery"), seed_service("airport", "✈️", "توصيل مطار", "Airport transfer"),
+        seed_service("school_bus", "🚌", "نقل مدارس", "School transport"), seed_service("heavy_equipment", "🏗️", "نقل معدات", "Equipment transport"),
+        seed_service("parcel", "📮", "طرود ومستندات", "Parcels and documents"),
+    ]),
+    seed_category("construction", "🏗️", "البناء والمقاولات", "Construction", [
+        seed_service("building", "🧱", "بناء", "Building"), seed_service("renovation", "🛠️", "ترميم", "Renovation"),
+        seed_service("tiles", "⬜", "بلاط", "Tiles"), seed_service("marble", "▫️", "رخام", "Marble"),
+        seed_service("aluminium", "🪟", "ألمنيوم", "Aluminium"), seed_service("metal", "⚒️", "حدادة", "Metalwork"),
+        seed_service("carpentry", "🪚", "نجارة", "Carpentry"), seed_service("insulation", "🧱", "عزل", "Insulation"),
+        seed_service("roof", "🏠", "صيانة أسطح", "Roof maintenance"), seed_service("glass", "🪟", "زجاج ومرايا", "Glass and mirrors"),
+        seed_service("plaster", "📐", "لياسة", "Plastering"), seed_service("blocks", "🧱", "طابوق", "Block work"),
+        seed_service("survey", "📏", "مساحة وتخطيط", "Surveying"), seed_service("engineering", "📋", "استشارة هندسية", "Engineering consultation"),
+        seed_service("demolition", "🚧", "إزالة وهدم", "Demolition"),
+    ]),
+    seed_category("tech", "💻", "التقنية", "Technology", [
+        seed_service("pc", "💻", "صيانة كمبيوتر", "Computer repair"), seed_service("phone_repair", "📱", "صيانة هواتف", "Phone repair"),
+        seed_service("cameras", "📹", "كاميرات مراقبة", "Security cameras"), seed_service("networks", "🌐", "شبكات", "Networks"),
+        seed_service("websites", "🧩", "برمجة مواقع", "Web development"), seed_service("design", "✏️", "تصميم", "Design"),
+        seed_service("tech_support", "🧑‍💻", "دعم تقني", "Technical support"), seed_service("pos", "🧾", "أنظمة نقاط بيع", "Point-of-sale systems"),
+        seed_service("printer", "🖨️", "طابعات", "Printers"), seed_service("data_recovery", "💾", "استرجاع بيانات", "Data recovery"),
+        seed_service("apps", "📲", "تطبيقات", "Mobile apps"), seed_service("marketing", "📣", "تسويق رقمي", "Digital marketing"),
+        seed_service("cyber", "🔐", "أمن معلومات", "Cybersecurity"), seed_service("apple", "🍏", "أجهزة أبل", "Apple devices"),
+    ]),
+    seed_category("cars", "🚘", "السيارات", "Cars", [
+        seed_service("car_electric", "🔌", "كهرباء سيارات", "Car electrical"), seed_service("mechanic", "🔧", "ميكانيكي", "Mechanic"),
+        seed_service("car_wash", "🧽", "غسيل سيارات", "Car wash"), seed_service("battery", "🔋", "تبديل بطارية", "Battery replacement"),
+        seed_service("tires", "🛞", "تبديل إطارات", "Tire replacement"), seed_service("inspection", "🔍", "فحص سيارة", "Car inspection"),
+        seed_service("tow", "🚨", "ونش", "Tow truck"), seed_service("polish", "✨", "تلميع", "Polishing"),
+        seed_service("oil", "🛢️", "تبديل زيت", "Oil change"), seed_service("ac_car", "❄️", "مكيف سيارات", "Car AC"),
+        seed_service("keys", "🗝️", "مفاتيح سيارات", "Car keys"), seed_service("tint", "🌗", "تظليل", "Window tinting"),
+        seed_service("paintless", "🧲", "شفط صدمات", "Dent repair"), seed_service("diagnostics", "🧪", "فحص كمبيوتر", "Diagnostics"),
+        seed_service("detailing", "🧼", "تنظيف داخلي", "Interior detailing"),
+    ]),
+    seed_category("events", "🎉", "المناسبات", "Events", [
+        seed_service("photo", "📸", "تصوير", "Photography"), seed_service("party", "🎈", "تنسيق حفلات", "Event coordination"),
+        seed_service("hospitality", "☕", "ضيافة", "Hospitality"), seed_service("coffee", "☕", "قهوة ومشروبات", "Coffee and drinks"),
+        seed_service("wedding", "💐", "كوش أفراح", "Wedding stage"), seed_service("dj", "🎧", "دي جي", "DJ"),
+        seed_service("flowers", "🌹", "ورود", "Flowers"), seed_service("equip", "🎪", "تجهيزات", "Event equipment"),
+        seed_service("video", "🎥", "تصوير فيديو", "Videography"), seed_service("sound", "🔊", "صوتيات وإضاءة", "Sound and lighting"),
+        seed_service("catering", "🍽️", "بوفيه وضيافة", "Catering"), seed_service("kids_party", "🎁", "حفلات أطفال", "Kids parties"),
+        seed_service("chairs", "🪑", "كراسي وطاولات", "Chairs and tables"), seed_service("makeup", "💄", "مكياج مناسبات", "Event makeup"),
+    ]),
+    seed_category("education", "📚", "التعليم", "Education", [
+        seed_service("english", "🇬🇧", "مدرس لغة إنجليزية", "English tutor"), seed_service("math", "➗", "مدرس رياضيات", "Math tutor"),
+        seed_service("arabic", "✍️", "مدرس عربي", "Arabic tutor"), seed_service("private_tutor", "👨‍🏫", "مدرس خصوصي", "Private tutor"),
+        seed_service("quran", "📖", "تحفيظ قرآن", "Quran memorization"), seed_service("computer_train", "💻", "تدريب حاسوب", "Computer training"),
+        seed_service("vocational", "🧰", "تدريب مهني", "Vocational training"), seed_service("physics", "🧲", "مدرس فيزياء", "Physics tutor"),
+        seed_service("chemistry", "⚗️", "مدرس كيمياء", "Chemistry tutor"), seed_service("ielts", "📝", "IELTS وTOEFL", "IELTS and TOEFL"),
+        seed_service("kids_learning", "🧒", "تأسيس أطفال", "Kids foundation"), seed_service("university", "🎓", "دروس جامعية", "University tutoring"),
+    ]),
+    seed_category("personal", "🧍", "خدمات شخصية", "Personal services", [
+        seed_service("barber", "💈", "حلاقة", "Barber"), seed_service("men_care", "🧴", "عناية رجالية", "Men care"),
+        seed_service("tailor", "🧵", "خياطة", "Tailoring"), seed_service("ironing", "👔", "كوي", "Ironing"),
+        seed_service("laundry", "🧺", "غسيل ملابس", "Laundry"), seed_service("perfume", "🪔", "عطور وبخور", "Perfume and bukhoor"),
+        seed_service("home_help", "🤝", "مساعدة منزلية", "Home assistance"), seed_service("beauty", "💅", "تجميل منزلي", "Home beauty"),
+        seed_service("massage", "🧘", "مساج واسترخاء", "Massage"), seed_service("elder_care", "🧓", "رعاية كبار السن", "Elder care"),
+        seed_service("pet_care", "🐾", "رعاية حيوانات أليفة", "Pet care"), seed_service("documents", "📄", "تخليص معاملات", "Document services"),
+    ]),
 ]
 
 SEED_PROVIDERS = [
@@ -262,11 +305,24 @@ def init_db():
         ensure_column(con, "leads", "service_name", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "gov", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "status", "TEXT DEFAULT 'open'")
-        if con.execute("SELECT COUNT(*) n FROM categories").fetchone()["n"] == 0:
-            for c in SEED_CATEGORIES:
-                con.execute("INSERT INTO categories VALUES(?,?,?,?,?)", (c["id"], c["icon"], c["ar"], c["en"], c["active"]))
-                for s in c["services"]:
-                    con.execute("INSERT INTO services VALUES(?,?,?,?,?,?)", (s["id"], c["id"], s["icon"], s["ar"], s["en"], s["active"]))
+        for c in SEED_CATEGORIES:
+            con.execute(
+                "INSERT OR IGNORE INTO categories(id,icon,ar,en,active) VALUES(?,?,?,?,?)",
+                (c["id"], c["icon"], c["ar"], c["en"], c["active"]),
+            )
+            con.execute(
+                "UPDATE categories SET icon=?, ar=?, en=? WHERE id=?",
+                (c["icon"], c["ar"], c["en"], c["id"]),
+            )
+            for s in c["services"]:
+                con.execute(
+                    "INSERT OR IGNORE INTO services(id,category_id,icon,ar,en,active) VALUES(?,?,?,?,?,?)",
+                    (s["id"], c["id"], s["icon"], s["ar"], s["en"], s["active"]),
+                )
+                con.execute(
+                    "UPDATE services SET icon=?, ar=?, en=? WHERE id=? AND category_id=?",
+                    (s["icon"], s["ar"], s["en"], s["id"], c["id"]),
+                )
         if con.execute("SELECT COUNT(*) n FROM providers").fetchone()["n"] == 0:
             for p in SEED_PROVIDERS:
                 con.execute(
@@ -872,6 +928,8 @@ class Handler(SimpleHTTPRequestHandler):
             }
             if not item["name"] or not item["phone"] or not item["pinHash"]:
                 return self.send_json({"error": "name_phone_pin_required"}, 400)
+            if not data.get("documentsData"):
+                return self.send_json({"error": "documents_required"}, 400)
             try:
                 if data.get("imageData"):
                     item["imagePath"] = save_data_url(req_id, data.get("imageData"))
