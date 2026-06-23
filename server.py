@@ -216,6 +216,80 @@ SEED_PROVIDERS = [
         "reviews": 51,
         "services": [{"catId": "cleaning", "serviceId": "home_clean", "priceFrom": 12, "active": True, "areas": ["بوشر", "السيب"]}],
     },
+    {
+        "id": "p3", "name": "ناصر للمكيفات", "phone": "93456789", "gov": "الداخلية", "wilayah": "نزوى",
+        "areas": ["نزوى", "بهلاء", "منح"], "bio": "صيانة مكيفات وتنظيف وفحص أعطال وتركيب.",
+        "hours": "9:00 ص - 8:00 م", "status": "available", "active": 1, "verified": 0, "featured": 0,
+        "package_id": "individual_6m", "rating": 4.4, "reviews": 22,
+        "services": [{"catId": "homecare", "serviceId": "ac", "priceFrom": 6, "active": True, "areas": ["نزوى", "بهلاء"]}],
+    },
+    {
+        "id": "p4", "name": "بركاء للنقل", "phone": "94567890", "gov": "جنوب الباطنة", "wilayah": "بركاء",
+        "areas": ["بركاء", "المصنعة", "مسقط"], "bio": "نقل أثاث وتحميل وتنزيل داخل الولاية وبين المحافظات.",
+        "hours": "6:00 ص - 11:00 م", "status": "available", "active": 1, "verified": 1, "featured": 0,
+        "package_id": "individual_6m", "rating": 4.6, "reviews": 18,
+        "services": [{"catId": "transport", "serviceId": "furniture_move", "priceFrom": 18, "active": True, "areas": ["بركاء", "مسقط"]}, {"catId": "transport", "serviceId": "loading", "priceFrom": 10, "active": True, "areas": ["بركاء"]}],
+    },
+    {
+        "id": "p5", "name": "تقنية الوادي", "phone": "95678901", "gov": "مسقط", "wilayah": "مطرح",
+        "areas": ["مطرح", "بوشر", "السيب"], "bio": "صيانة كمبيوتر وشبكات وكاميرات وأنظمة نقاط بيع.",
+        "hours": "10:00 ص - 9:00 م", "status": "unavailable", "active": 1, "verified": 1, "featured": 0,
+        "package_id": "individual_year", "rating": 4.9, "reviews": 14,
+        "services": [{"catId": "tech", "serviceId": "pc", "priceFrom": 8, "active": True, "areas": ["مسقط"]}, {"catId": "tech", "serviceId": "cameras", "priceFrom": 25, "active": True, "areas": ["مسقط"]}],
+    },
+    {
+        "id": "p6", "name": "ظفار للمناسبات", "phone": "96789012", "gov": "ظفار", "wilayah": "صلالة",
+        "areas": ["صلالة", "طاقة"], "bio": "تصوير وتنسيق مناسبات وضيافة بتجهيزات مرتبة.",
+        "hours": "حسب الموعد", "status": "available", "active": 1, "verified": 0, "featured": 0,
+        "package_id": "intro", "rating": 4.3, "reviews": 11,
+        "services": [{"catId": "events", "serviceId": "photo", "priceFrom": 35, "active": True, "areas": ["صلالة"]}, {"catId": "events", "serviceId": "hospitality", "priceFrom": 20, "active": True, "areas": ["صلالة"]}],
+    },
+    {
+        "id": "p7", "name": "عُمان للمقاولات الخفيفة", "phone": "97890123", "provider_type": "company",
+        "company_name": "عُمان للمقاولات الخفيفة", "gov": "مسقط", "wilayah": "العامرات",
+        "areas": ["العامرات", "بوشر", "قريات"], "bio": "شركة صغيرة لأعمال الترميم والبلاط والألمنيوم مع فريق عمل منظم.",
+        "hours": "كل أيام الأسبوع 8:00 - 18:00", "status": "available", "active": 1, "verified": 1, "featured": 1,
+        "package_id": "company_year", "rating": 4.8, "reviews": 27, "subscription_start": "2026-06-01", "subscription_until": "2027-06-01",
+        "services": [{"catId": "construction", "serviceId": "renovation", "priceFrom": 25, "active": True, "areas": ["مسقط"]}, {"catId": "construction", "serviceId": "tiles", "priceFrom": 18, "active": True, "areas": ["مسقط"]}, {"catId": "construction", "serviceId": "aluminium", "priceFrom": 30, "active": True, "areas": ["مسقط"]}],
+    },
+    {
+        "id": "p8", "name": "مركز الطريق للسيارات", "phone": "98901234", "provider_type": "company",
+        "company_name": "مركز الطريق للسيارات", "gov": "شمال الباطنة", "wilayah": "صحار",
+        "areas": ["صحار", "صحم", "السويق"], "bio": "خدمات فحص وميكانيكا وكهرباء سيارات مع مواعيد واضحة وتواصل سريع.",
+        "hours": "السبت - الخميس 8:00 - 20:00", "status": "available", "active": 1, "verified": 1, "featured": 1,
+        "package_id": "company_year", "rating": 4.7, "reviews": 34, "subscription_start": "2026-06-10", "subscription_until": "2027-06-10",
+        "services": [{"catId": "cars", "serviceId": "mechanic", "priceFrom": 10, "active": True, "areas": ["صحار"]}, {"catId": "cars", "serviceId": "inspection", "priceFrom": 8, "active": True, "areas": ["صحار", "صحم"]}, {"catId": "cars", "serviceId": "battery", "priceFrom": 12, "active": True, "areas": ["شمال الباطنة"]}],
+    },
+    {
+        "id": "p9", "name": "أسماء للتعليم المنزلي", "phone": "99012345", "gov": "الداخلية", "wilayah": "بهلاء",
+        "areas": ["بهلاء", "نزوى", "منح"], "bio": "دروس تأسيس ورياضيات وإنجليزي للطلاب مع متابعة أسبوعية مختصرة.",
+        "hours": "أيام محددة 16:00 - 21:00", "status": "busy", "active": 1, "verified": 1, "featured": 0,
+        "package_id": "individual_year", "rating": 4.9, "reviews": 19, "subscription_start": "2026-05-20", "subscription_until": "2027-05-20",
+        "services": [{"catId": "education", "serviceId": "math", "priceFrom": 6, "active": True, "areas": ["بهلاء", "نزوى"]}, {"catId": "education", "serviceId": "english", "priceFrom": 7, "active": True, "areas": ["الداخلية"]}, {"catId": "education", "serviceId": "kids_learning", "priceFrom": 5, "active": True, "areas": ["بهلاء"]}],
+    },
+    {
+        "id": "p10", "name": "دار العناية المنزلية", "phone": "90123456", "provider_type": "company",
+        "company_name": "دار العناية المنزلية", "gov": "مسقط", "wilayah": "مطرح",
+        "areas": ["مطرح", "بوشر", "السيب"], "bio": "شركة خدمات شخصية منزلية تشمل رعاية كبار السن والمساعدة المنزلية والغسيل.",
+        "hours": "كل أيام الأسبوع 7:00 - 22:00", "status": "available", "active": 1, "verified": 1, "featured": 0,
+        "package_id": "company_year", "rating": 4.6, "reviews": 23, "subscription_start": "2026-06-15", "subscription_until": "2027-06-15",
+        "services": [{"catId": "personal", "serviceId": "elder_care", "priceFrom": 15, "active": True, "areas": ["مسقط"]}, {"catId": "personal", "serviceId": "home_help", "priceFrom": 8, "active": True, "areas": ["مسقط"]}, {"catId": "personal", "serviceId": "laundry", "priceFrom": 4, "active": True, "areas": ["مطرح", "بوشر"]}],
+    },
+    {
+        "id": "p11", "name": "مريم للخياطة والتجهيز", "phone": "91230001", "gov": "جنوب الباطنة", "wilayah": "الرستاق",
+        "areas": ["الرستاق", "بركاء"], "bio": "خياطة وتعديل ملابس وكوي وتجهيز بسيط للمناسبات.",
+        "hours": "نهاية الأسبوع 10:00 - 20:00", "status": "available", "active": 1, "verified": 0, "featured": 0,
+        "package_id": "individual_6m", "rating": 4.5, "reviews": 12, "subscription_start": "2026-06-01", "subscription_until": "2026-12-01",
+        "services": [{"catId": "personal", "serviceId": "tailor", "priceFrom": 3, "active": True, "areas": ["الرستاق"]}, {"catId": "personal", "serviceId": "ironing", "priceFrom": 2, "active": True, "areas": ["جنوب الباطنة"]}],
+    },
+    {
+        "id": "p12", "name": "المهارة للتقنية والتصميم", "phone": "92340002", "provider_type": "company",
+        "company_name": "المهارة للتقنية والتصميم", "gov": "مسقط", "wilayah": "بوشر",
+        "areas": ["بوشر", "السيب", "مطرح"], "bio": "شركة تقنية لتصميم المواقع والدعم التقني والشبكات للمحلات والشركات.",
+        "hours": "الأحد - الخميس 9:00 - 18:00", "status": "available", "active": 1, "verified": 1, "featured": 1,
+        "package_id": "company_year", "rating": 4.8, "reviews": 29, "subscription_start": "2026-06-05", "subscription_until": "2027-06-05",
+        "services": [{"catId": "tech", "serviceId": "websites", "priceFrom": 80, "active": True, "areas": ["مسقط"]}, {"catId": "tech", "serviceId": "design", "priceFrom": 20, "active": True, "areas": ["مسقط"]}, {"catId": "tech", "serviceId": "networks", "priceFrom": 25, "active": True, "areas": ["مسقط"]}],
+    },
 ]
 
 
@@ -248,6 +322,7 @@ def init_db():
               package_id TEXT, rating REAL, reviews INTEGER, admin_note TEXT DEFAULT '', image_path TEXT DEFAULT '',
               pin_hash TEXT DEFAULT '', services TEXT NOT NULL, work_images TEXT DEFAULT '[]', documents TEXT DEFAULT '[]',
               quality_score INTEGER DEFAULT 60, response_score INTEGER DEFAULT 70, subscription_until TEXT DEFAULT '',
+              subscription_start TEXT DEFAULT '', provider_type TEXT DEFAULT 'individual', company_name TEXT DEFAULT '', company_id TEXT DEFAULT '',
               stats TEXT NOT NULL DEFAULT '{"views":0,"whatsapp":0,"calls":0}', created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS provider_requests(
@@ -301,6 +376,10 @@ def init_db():
         ensure_column(con, "providers", "quality_score", "INTEGER DEFAULT 60")
         ensure_column(con, "providers", "response_score", "INTEGER DEFAULT 70")
         ensure_column(con, "providers", "subscription_until", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "subscription_start", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "provider_type", "TEXT DEFAULT 'individual'")
+        ensure_column(con, "providers", "company_name", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "company_id", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "service_value", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "service_name", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "gov", "TEXT DEFAULT ''")
@@ -323,28 +402,33 @@ def init_db():
                     "UPDATE services SET icon=?, ar=?, en=? WHERE id=? AND category_id=?",
                     (s["icon"], s["ar"], s["en"], s["id"], c["id"]),
                 )
-        if con.execute("SELECT COUNT(*) n FROM providers").fetchone()["n"] == 0:
-            for p in SEED_PROVIDERS:
-                con.execute(
-                    """INSERT INTO providers(id,name,phone,gov,wilayah,areas,bio,hours,status,active,verified,featured,
-                    package_id,rating,reviews,services,stats,pin_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (
-                        p["id"], p["name"], p["phone"], p["gov"], p["wilayah"], jdump(p["areas"]), p["bio"], p["hours"],
-                        p["status"], p["active"], p["verified"], p["featured"], p["package_id"], p["rating"], p["reviews"],
-                        jdump(p["services"]), jdump({"views": 0, "whatsapp": 0, "calls": 0}),
-                        hash_secret(default_provider_pin(p["phone"])),
-                    ),
-                )
+        for p in SEED_PROVIDERS:
+            con.execute(
+                """INSERT OR IGNORE INTO providers(id,name,phone,gov,wilayah,areas,bio,hours,status,active,verified,featured,
+                package_id,rating,reviews,services,subscription_until,subscription_start,provider_type,company_name,stats,pin_hash)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    p["id"], p["name"], p["phone"], p["gov"], p["wilayah"], jdump(p["areas"]), p["bio"], p["hours"],
+                    p.get("status", "available"), p.get("active", 1), p.get("verified", 0), p.get("featured", 0),
+                    p.get("package_id", "intro"), p.get("rating", 0), p.get("reviews", 0), jdump(p.get("services", [])),
+                    p.get("subscription_until", ""), p.get("subscription_start", ""),
+                    p.get("provider_type", "individual"), p.get("company_name", ""),
+                    jdump(p.get("stats", {"views": 0, "whatsapp": 0, "calls": 0})),
+                    hash_secret(default_provider_pin(p.get("phone", ""))),
+                ),
+            )
         for r in con.execute("SELECT id, phone FROM providers WHERE COALESCE(pin_hash,'')=''"):
             con.execute("UPDATE providers SET pin_hash=? WHERE id=?", (hash_secret(default_provider_pin(r["phone"])), r["id"]))
-        if con.execute("SELECT COUNT(*) n FROM packages").fetchone()["n"] == 0:
-            for pkg in [
-                ("intro", "مجانية", "Free", 0, 30, 0, 1, 3, 1),
-                ("basic", "أساسية", "Basic", 3, 30, 0, 3, 5, 1),
-                ("plus", "مميزة", "Featured", 7, 30, 25, 6, 8, 1),
-                ("growth", "احترافية", "Growth", 12, 30, 50, 12, 12, 1),
-            ]:
-                con.execute("INSERT INTO packages VALUES(?,?,?,?,?,?,?,?,?)", pkg)
+        for pkg in [
+            ("intro", "مجانية", "Free launch", 0, 365, 0, 1, 5, 1),
+            ("individual_6m", "مزود 6 أشهر", "Provider 6 months", 10, 183, 10, 4, 5, 1),
+            ("individual_year", "مزود سنة", "Provider yearly", 15, 365, 20, 7, 5, 1),
+            ("company_year", "شركة سنوية", "Company yearly", 50, 365, 45, 18, 12, 1),
+        ]:
+            con.execute(
+                "INSERT OR IGNORE INTO packages VALUES(?,?,?,?,?,?,?,?,?)",
+                pkg,
+            )
         if con.execute("SELECT COUNT(*) n FROM reviews").fetchone()["n"] == 0:
             con.execute("INSERT INTO reviews VALUES(?,?,?,?,?,?,1,CURRENT_TIMESTAMP)", ("rev_seed_1", "p1", 5, "عميل موثق", "", "خدمة سريعة ومرتبة"))
             con.execute("INSERT INTO reviews VALUES(?,?,?,?,?,?,1,CURRENT_TIMESTAMP)", ("rev_seed_2", "p2", 5, "عميلة", "", "التنظيف ممتاز والموعد واضح"))
@@ -355,6 +439,9 @@ def init_db():
                 "nameEn": "Fawran",
                 "adminWhatsapp": "96890000000",
                 "monthlyGoal": 500,
+                "acceptProviders": True,
+                "subscriptionsEnabled": False,
+                "paymentGatewayEnabled": False,
                 "uiMode": "simple",
                 "showHeroImage": True,
                 "showQuickActions": True,
@@ -402,6 +489,10 @@ def row_provider(r, private=False):
     d["qualityScore"] = int(d.pop("quality_score", 0) or 0)
     d["responseScore"] = int(d.pop("response_score", 0) or 0)
     d["subscriptionUntil"] = d.pop("subscription_until", "")
+    d["subscriptionStart"] = d.pop("subscription_start", "")
+    d["providerType"] = d.pop("provider_type", "individual") or "individual"
+    d["companyName"] = d.pop("company_name", "")
+    d["companyId"] = d.pop("company_id", "")
     d["pinConfigured"] = bool(d.pop("pin_hash", ""))
     if not private:
         d.pop("adminNote", None)
@@ -756,20 +847,23 @@ def upsert_provider(con, data):
         pin_hash = existing_hash or hash_secret(default_provider_pin(p.get("phone")))
     work_images = data.get("workImages") or existing_provider.get("workImages", [])
     if data.get("workImagesData"):
-        work_images = save_many_images(p["id"], data.get("workImagesData"), "work", 5)
+        work_images = save_many_images(p["id"], data.get("workImagesData"), "work", 12 if data.get("providerType") == "company" else 5)
     documents = data.get("documents") or existing_provider.get("documents", [])
     if data.get("documentsData"):
         documents = save_many_documents(p["id"], data.get("documentsData"), "doc", 3)
     con.execute(
         """INSERT INTO providers(id,name,phone,gov,wilayah,areas,bio,hours,status,active,verified,featured,
-        package_id,rating,reviews,admin_note,image_path,pin_hash,services,work_images,documents,quality_score,response_score,subscription_until,stats)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        package_id,rating,reviews,admin_note,image_path,pin_hash,services,work_images,documents,quality_score,response_score,
+        subscription_until,subscription_start,provider_type,company_name,company_id,stats)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(id) DO UPDATE SET name=excluded.name,phone=excluded.phone,gov=excluded.gov,
         wilayah=excluded.wilayah,areas=excluded.areas,bio=excluded.bio,hours=excluded.hours,status=excluded.status,
         active=excluded.active,verified=excluded.verified,featured=excluded.featured,package_id=excluded.package_id,
         rating=excluded.rating,reviews=excluded.reviews,admin_note=excluded.admin_note,image_path=excluded.image_path,
         pin_hash=excluded.pin_hash,services=excluded.services,work_images=excluded.work_images,documents=excluded.documents,
-        quality_score=excluded.quality_score,response_score=excluded.response_score,subscription_until=excluded.subscription_until""",
+        quality_score=excluded.quality_score,response_score=excluded.response_score,subscription_until=excluded.subscription_until,
+        subscription_start=excluded.subscription_start,provider_type=excluded.provider_type,
+        company_name=excluded.company_name,company_id=excluded.company_id""",
         (
             p["id"], p.get("name", ""), p.get("phone", ""), p.get("gov", ""), p.get("wilayah", ""),
             jdump(p.get("areas", [])), p.get("bio", ""), p.get("hours", ""), p.get("status", "available"),
@@ -781,6 +875,10 @@ def upsert_provider(con, data):
             int(p.get("qualityScore", existing_provider.get("qualityScore", 60)) or 60),
             int(p.get("responseScore", existing_provider.get("responseScore", 70)) or 70),
             p.get("subscriptionUntil", existing_provider.get("subscriptionUntil", "")),
+            p.get("subscriptionStart", existing_provider.get("subscriptionStart", "")),
+            p.get("providerType", existing_provider.get("providerType", "individual")),
+            p.get("companyName", existing_provider.get("companyName", "")),
+            p.get("companyId", existing_provider.get("companyId", "")),
             jdump(p.get("stats", existing_provider.get("stats", {"views": 0, "whatsapp": 0, "calls": 0}))),
         ),
     )
@@ -915,6 +1013,11 @@ class Handler(SimpleHTTPRequestHandler):
                 "id": req_id,
                 "name": data.get("name", "").strip(),
                 "phone": data.get("phone", "").strip(),
+                "providerType": data.get("providerType", "individual") if data.get("providerType") in ("individual", "company") else "individual",
+                "companyName": data.get("companyName", "").strip(),
+                "commercialNo": data.get("commercialNo", "").strip(),
+                "companySize": data.get("companySize", "").strip(),
+                "businessRole": data.get("businessRole", "").strip(),
                 "gov": data.get("gov", "مسقط"),
                 "wilayah": data.get("wilayah", ""),
                 "service": data.get("service", ""),
@@ -928,13 +1031,15 @@ class Handler(SimpleHTTPRequestHandler):
             }
             if not item["name"] or not item["phone"] or not item["pinHash"]:
                 return self.send_json({"error": "name_phone_pin_required"}, 400)
+            if item["providerType"] == "company" and not item["companyName"]:
+                return self.send_json({"error": "company_name_required"}, 400)
             if not data.get("documentsData"):
                 return self.send_json({"error": "documents_required"}, 400)
             try:
                 if data.get("imageData"):
                     item["imagePath"] = save_data_url(req_id, data.get("imageData"))
                 if data.get("workImagesData"):
-                    item["workImages"] = save_many_images(req_id, data.get("workImagesData"), "work", 5)
+                    item["workImages"] = save_many_images(req_id, data.get("workImagesData"), "work", 12 if item["providerType"] == "company" else 5)
                 if data.get("documentsData"):
                     item["documents"] = save_many_documents(req_id, data.get("documentsData"), "doc", 3)
             except ValueError as err:
@@ -1096,7 +1201,7 @@ class Handler(SimpleHTTPRequestHandler):
                 recompute_provider_quality(con, provider["id"])
                 return self.send_json({"ok": True, "imageUrl": image_url(image_path)})
             if path == "/api/provider/work-images":
-                images = save_many_images(provider["id"], data.get("workImagesData", []), "work", 5)
+                images = save_many_images(provider["id"], data.get("workImagesData", []), "work", 12 if provider.get("providerType") == "company" else 5)
                 if images:
                     con.execute("UPDATE providers SET work_images=? WHERE id=?", (jdump(images), provider["id"]))
                     recompute_provider_quality(con, provider["id"])
@@ -1166,6 +1271,12 @@ class Handler(SimpleHTTPRequestHandler):
                         "id": slug("p"),
                         "name": payload.get("name", ""),
                         "phone": payload.get("phone", ""),
+                        "providerType": payload.get("providerType", "individual"),
+                        "companyName": payload.get("companyName", ""),
+                        "companyId": payload.get("companyName", "") if payload.get("providerType") == "company" else "",
+                        "commercialNo": payload.get("commercialNo", ""),
+                        "companySize": payload.get("companySize", ""),
+                        "businessRole": payload.get("businessRole", ""),
                         "gov": payload.get("gov", ""),
                         "wilayah": payload.get("wilayah", ""),
                         "areas": [payload.get("wilayah", "")],
@@ -1175,7 +1286,7 @@ class Handler(SimpleHTTPRequestHandler):
                         "active": True,
                         "verified": False,
                         "featured": False,
-                        "packageId": "intro",
+                        "packageId": "company_year" if payload.get("providerType") == "company" else "intro",
                         "rating": 0,
                         "reviews": 0,
                         "imagePath": payload.get("imagePath", ""),
@@ -1183,7 +1294,7 @@ class Handler(SimpleHTTPRequestHandler):
                         "documents": payload.get("documents", []),
                         "services": [],
                         "stats": {"views": 0, "whatsapp": 0, "calls": 0},
-                        "adminNote": "تم قبوله من الطلبات",
+                        "adminNote": "تم قبوله من الطلبات" + (f" | سجل: {payload.get('commercialNo', '')} | فريق: {payload.get('companySize', '')}" if payload.get("providerType") == "company" else f" | مهنة: {payload.get('businessRole', '')}"),
                         "pinHash": payload.get("pinHash") or hash_secret(default_provider_pin(payload.get("phone", ""))),
                     }
                     service = payload.get("service", "")
@@ -1263,7 +1374,10 @@ class Handler(SimpleHTTPRequestHandler):
                     (sub_id, provider_id, package_id, amount, status, start_date, end_date, data.get("note", "")),
                 )
                 if status == "active":
-                    con.execute("UPDATE providers SET package_id=?, featured=?, subscription_until=? WHERE id=?", (package_id, 1 if int(pkg["featured_boost"] or 0) > 0 else 0, end_date, provider_id))
+                    con.execute(
+                        "UPDATE providers SET package_id=?, featured=?, subscription_start=?, subscription_until=? WHERE id=?",
+                        (package_id, 1 if int(pkg["featured_boost"] or 0) > 0 else 0, start_date, end_date, provider_id),
+                    )
                 log_audit(con, session, "subscription.upserted", sub_id, f"{provider_id}:{package_id}:{status}")
                 return self.send_json({"ok": True, "id": sub_id})
             if path == "/api/admin/payments":

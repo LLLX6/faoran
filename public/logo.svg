@@ -1,25 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="شعار فوراً">
   <defs>
-    <linearGradient id="bg" x1="80" y1="52" x2="432" y2="462" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0b2440"/>
-      <stop offset=".55" stop-color="#146c94"/>
-      <stop offset="1" stop-color="#18a889"/>
+    <linearGradient id="bg" x1="70" y1="50" x2="440" y2="462" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#073B5A"/>
+      <stop offset=".52" stop-color="#0F8A9D"/>
+      <stop offset="1" stop-color="#18A889"/>
     </linearGradient>
-    <linearGradient id="flash" x1="186" y1="96" x2="360" y2="398" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ffe9a6"/>
-      <stop offset="1" stop-color="#f2b632"/>
+    <linearGradient id="bolt" x1="202" y1="100" x2="342" y2="402" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE9A6"/>
+      <stop offset="1" stop-color="#F6B21A"/>
     </linearGradient>
-    <filter id="s" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#082038" flood-opacity=".28"/>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#072E45" flood-opacity=".28"/>
     </filter>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
-  <circle cx="396" cy="108" r="42" fill="#ffffff" opacity=".1"/>
-  <circle cx="94" cy="394" r="54" fill="#ffffff" opacity=".08"/>
-  <g filter="url(#s)">
-    <path d="M149 162c32-34 73-51 123-51 76 0 127 44 127 108 0 70-58 119-139 119h-48v48c0 15-12 27-27 27h-36V269h107c40 0 64-19 64-48 0-27-21-44-55-44-28 0-52 10-72 31l-44-46Z" fill="#fff"/>
-    <path d="M341 91 198 280h77l-38 156 138-204h-76l42-141Z" fill="url(#flash)"/>
-    <path d="M126 397h150c16 0 29-13 29-29v-1h73c15 0 27 12 27 27s-12 27-27 27H126c-14 0-25-11-25-25s11-25 25-25Z" fill="#fff" opacity=".93"/>
+  <rect width="512" height="512" rx="132" fill="url(#bg)"/>
+  <path d="M75 378c80 35 166 34 258-4 47-19 83-24 108-13v55c-91 46-182 48-274 5-38-18-69-24-92-18v-25Z" fill="#fff" opacity=".10"/>
+  <circle cx="391" cy="112" r="45" fill="#fff" opacity=".10"/>
+  <circle cx="104" cy="389" r="52" fill="#fff" opacity=".08"/>
+  <g filter="url(#shadow)">
+    <path d="M132 344V170c0-30 24-54 54-54h112c70 0 118 42 118 103 0 66-51 108-128 108h-60v54c0 12-10 22-22 22h-52c-12 0-22-10-22-22v-37Zm96-102h62c24 0 40-13 40-32 0-18-15-30-39-30h-63v62Z" fill="#fff"/>
+    <path d="M344 82 205 276h75l-37 154 141-207h-76l36-141Z" fill="url(#bolt)"/>
+    <path d="M104 409h185c17 0 31-14 31-31v-12h61c15 0 27 12 27 27s-12 27-27 27H104c-15 0-27-12-27-27s12-27 27-27Z" fill="#fff" opacity=".92"/>
   </g>
-  <circle cx="390" cy="388" r="42" fill="#18a889" stroke="#fff" stroke-width="14"/>
+  <circle cx="394" cy="386" r="43" fill="#18A889" stroke="#fff" stroke-width="14"/>
+  <path d="M374 387h40M394 367v40" stroke="#fff" stroke-width="18" stroke-linecap="round"/>
 </svg>
