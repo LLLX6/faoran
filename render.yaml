@@ -2,7 +2,7 @@ services:
   - type: web
     name: faoran
     runtime: python
-    plan: starter
+    plan: free
     branch: main
     buildCommand: pip install -r requirements.txt
     startCommand: python server.py
@@ -10,13 +10,5 @@ services:
     envVars:
       - key: HOST
         value: 0.0.0.0
-      - key: FORAN_DB_PATH
-        value: /var/data/foran.sqlite3
-      - key: FORAN_UPLOAD_DIR
-        value: /var/data/uploads
       - key: FORAN_ADMIN_CODE
         sync: false
-    disk:
-      name: faoran-data
-      mountPath: /var/data
-      sizeGB: 1
