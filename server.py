@@ -323,6 +323,7 @@ def init_db():
               pin_hash TEXT DEFAULT '', services TEXT NOT NULL, work_images TEXT DEFAULT '[]', documents TEXT DEFAULT '[]',
               quality_score INTEGER DEFAULT 60, response_score INTEGER DEFAULT 70, subscription_until TEXT DEFAULT '',
               subscription_start TEXT DEFAULT '', provider_type TEXT DEFAULT 'individual', company_name TEXT DEFAULT '', company_id TEXT DEFAULT '',
+              commercial_no TEXT DEFAULT '', verification_expiry TEXT DEFAULT '', commercial_expiry TEXT DEFAULT '', license_expiry TEXT DEFAULT '',
               stats TEXT NOT NULL DEFAULT '{"views":0,"whatsapp":0,"calls":0}', created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS provider_requests(
@@ -380,6 +381,10 @@ def init_db():
         ensure_column(con, "providers", "provider_type", "TEXT DEFAULT 'individual'")
         ensure_column(con, "providers", "company_name", "TEXT DEFAULT ''")
         ensure_column(con, "providers", "company_id", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "commercial_no", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "verification_expiry", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "commercial_expiry", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "license_expiry", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "service_value", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "service_name", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "gov", "TEXT DEFAULT ''")
@@ -423,12 +428,18 @@ def init_db():
             ("intro", "مجانية", "Free launch", 0, 365, 0, 1, 5, 1),
             ("individual_6m", "مزود 6 أشهر", "Provider 6 months", 10, 183, 10, 4, 5, 1),
             ("individual_year", "مزود سنة", "Provider yearly", 15, 365, 20, 7, 5, 1),
-            ("company_year", "شركة سنوية", "Company yearly", 50, 365, 45, 18, 12, 1),
+            ("company_year", "شركة سنوية", "Company yearly", 50, 365, 45, 5, 15, 1),
+            ("intro_90", "تعريفية", "Introductory", 0, 90, 0, 1, 5, 1),
+            ("basic_90", "أساسية", "Basic", 6, 90, 0, 1, 5, 1),
+            ("active_90", "نشطة", "Active", 12, 90, 12, 1, 5, 1),
+            ("featured_90", "بارزة", "Featured", 20, 90, 40, 1, 10, 1),
+            ("company_90", "شركة", "Company", 30, 90, 25, 5, 15, 1),
         ]:
             con.execute(
                 "INSERT OR IGNORE INTO packages VALUES(?,?,?,?,?,?,?,?,?)",
                 pkg,
             )
+        con.execute("UPDATE packages SET max_services=5,max_images=15 WHERE id='company_year' AND max_services>5")
         if con.execute("SELECT COUNT(*) n FROM reviews").fetchone()["n"] == 0:
             con.execute("INSERT INTO reviews VALUES(?,?,?,?,?,?,1,CURRENT_TIMESTAMP)", ("rev_seed_1", "p1", 5, "عميل موثق", "", "خدمة سريعة ومرتبة"))
             con.execute("INSERT INTO reviews VALUES(?,?,?,?,?,?,1,CURRENT_TIMESTAMP)", ("rev_seed_2", "p2", 5, "عميلة", "", "التنظيف ممتاز والموعد واضح"))
@@ -493,6 +504,10 @@ def row_provider(r, private=False):
     d["providerType"] = d.pop("provider_type", "individual") or "individual"
     d["companyName"] = d.pop("company_name", "")
     d["companyId"] = d.pop("company_id", "")
+    d["commercialNo"] = d.pop("commercial_no", "")
+    d["verificationExpiry"] = d.pop("verification_expiry", "")
+    d["commercialExpiry"] = d.pop("commercial_expiry", "")
+    d["licenseExpiry"] = d.pop("license_expiry", "")
     d["pinConfigured"] = bool(d.pop("pin_hash", ""))
     if not private:
         d.pop("adminNote", None)
@@ -847,15 +862,16 @@ def upsert_provider(con, data):
         pin_hash = existing_hash or hash_secret(default_provider_pin(p.get("phone")))
     work_images = data.get("workImages") or existing_provider.get("workImages", [])
     if data.get("workImagesData"):
-        work_images = save_many_images(p["id"], data.get("workImagesData"), "work", 12 if data.get("providerType") == "company" else 5)
+        work_images = save_many_images(p["id"], data.get("workImagesData"), "work", 15 if data.get("providerType") == "company" else 5)
     documents = data.get("documents") or existing_provider.get("documents", [])
     if data.get("documentsData"):
         documents = save_many_documents(p["id"], data.get("documentsData"), "doc", 3)
     con.execute(
         """INSERT INTO providers(id,name,phone,gov,wilayah,areas,bio,hours,status,active,verified,featured,
         package_id,rating,reviews,admin_note,image_path,pin_hash,services,work_images,documents,quality_score,response_score,
-        subscription_until,subscription_start,provider_type,company_name,company_id,stats)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        subscription_until,subscription_start,provider_type,company_name,company_id,commercial_no,
+        verification_expiry,commercial_expiry,license_expiry,stats)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(id) DO UPDATE SET name=excluded.name,phone=excluded.phone,gov=excluded.gov,
         wilayah=excluded.wilayah,areas=excluded.areas,bio=excluded.bio,hours=excluded.hours,status=excluded.status,
         active=excluded.active,verified=excluded.verified,featured=excluded.featured,package_id=excluded.package_id,
@@ -863,7 +879,9 @@ def upsert_provider(con, data):
         pin_hash=excluded.pin_hash,services=excluded.services,work_images=excluded.work_images,documents=excluded.documents,
         quality_score=excluded.quality_score,response_score=excluded.response_score,subscription_until=excluded.subscription_until,
         subscription_start=excluded.subscription_start,provider_type=excluded.provider_type,
-        company_name=excluded.company_name,company_id=excluded.company_id""",
+        company_name=excluded.company_name,company_id=excluded.company_id,commercial_no=excluded.commercial_no,
+        verification_expiry=excluded.verification_expiry,commercial_expiry=excluded.commercial_expiry,
+        license_expiry=excluded.license_expiry""",
         (
             p["id"], p.get("name", ""), p.get("phone", ""), p.get("gov", ""), p.get("wilayah", ""),
             jdump(p.get("areas", [])), p.get("bio", ""), p.get("hours", ""), p.get("status", "available"),
@@ -879,6 +897,10 @@ def upsert_provider(con, data):
             p.get("providerType", existing_provider.get("providerType", "individual")),
             p.get("companyName", existing_provider.get("companyName", "")),
             p.get("companyId", existing_provider.get("companyId", "")),
+            p.get("commercialNo", existing_provider.get("commercialNo", "")),
+            p.get("verificationExpiry", existing_provider.get("verificationExpiry", "")),
+            p.get("commercialExpiry", existing_provider.get("commercialExpiry", "")),
+            p.get("licenseExpiry", existing_provider.get("licenseExpiry", "")),
             jdump(p.get("stats", existing_provider.get("stats", {"views": 0, "whatsapp": 0, "calls": 0}))),
         ),
     )
@@ -1033,13 +1055,22 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"error": "name_phone_pin_required"}, 400)
             if item["providerType"] == "company" and not item["companyName"]:
                 return self.send_json({"error": "company_name_required"}, 400)
+            if not item["commercialNo"]:
+                return self.send_json({"error": "commercial_number_required"}, 400)
+            note_words = len(str(item["note"]).split())
+            if note_words < 3 or note_words > 20:
+                return self.send_json({"error": "description_word_limit"}, 400)
+            if not item["service"] or "|" not in item["service"]:
+                return self.send_json({"error": "service_required"}, 400)
+            if not item["hours"]:
+                return self.send_json({"error": "availability_required"}, 400)
             if not data.get("documentsData"):
                 return self.send_json({"error": "documents_required"}, 400)
             try:
                 if data.get("imageData"):
                     item["imagePath"] = save_data_url(req_id, data.get("imageData"))
                 if data.get("workImagesData"):
-                    item["workImages"] = save_many_images(req_id, data.get("workImagesData"), "work", 12 if item["providerType"] == "company" else 5)
+                    item["workImages"] = save_many_images(req_id, data.get("workImagesData"), "work", 15 if item["providerType"] == "company" else 5)
                 if data.get("documentsData"):
                     item["documents"] = save_many_documents(req_id, data.get("documentsData"), "doc", 3)
             except ValueError as err:
@@ -1175,6 +1206,10 @@ class Handler(SimpleHTTPRequestHandler):
                 provider.update({
                     "name": data.get("name", provider["name"]),
                     "phone": data.get("phone", provider["phone"]),
+                    "commercialNo": data.get("commercialNo", provider.get("commercialNo", "")),
+                    "verificationExpiry": data.get("verificationExpiry", provider.get("verificationExpiry", "")),
+                    "commercialExpiry": data.get("commercialExpiry", provider.get("commercialExpiry", "")),
+                    "licenseExpiry": data.get("licenseExpiry", provider.get("licenseExpiry", "")),
                     "gov": data.get("gov", provider["gov"]),
                     "wilayah": data.get("wilayah", provider["wilayah"]),
                     "areas": data.get("areas", provider["areas"]),
@@ -1201,7 +1236,7 @@ class Handler(SimpleHTTPRequestHandler):
                 recompute_provider_quality(con, provider["id"])
                 return self.send_json({"ok": True, "imageUrl": image_url(image_path)})
             if path == "/api/provider/work-images":
-                images = save_many_images(provider["id"], data.get("workImagesData", []), "work", 12 if provider.get("providerType") == "company" else 5)
+                images = save_many_images(provider["id"], data.get("workImagesData", []), "work", 15 if provider.get("providerType") == "company" else 5)
                 if images:
                     con.execute("UPDATE providers SET work_images=? WHERE id=?", (jdump(images), provider["id"]))
                     recompute_provider_quality(con, provider["id"])
@@ -1265,6 +1300,14 @@ class Handler(SimpleHTTPRequestHandler):
                 if not row:
                     return self.send_json({"error": "not_found"}, 404)
                 payload = jload(row["payload"], {})
+                if data.get("decision") == "accept":
+                    note_words = len(str(payload.get("note", "")).split())
+                    if not payload.get("commercialNo"):
+                        return self.send_json({"error": "commercial_number_required"}, 400)
+                    if note_words < 3 or note_words > 20:
+                        return self.send_json({"error": "description_word_limit"}, 400)
+                    if not payload.get("documents"):
+                        return self.send_json({"error": "documents_required"}, 400)
                 con.execute("DELETE FROM provider_requests WHERE id=?", (data.get("id"),))
                 if data.get("decision") == "accept":
                     provider = {
