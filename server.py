@@ -446,8 +446,8 @@ def init_db():
         con.execute(
             "INSERT OR IGNORE INTO settings VALUES('platform', ?)",
             (jdump({
-                "nameAr": "فوراً",
-                "nameEn": "Fawran",
+                "nameAr": "خدماتي",
+                "nameEn": "Khadamati",
                 "adminWhatsapp": "96890000000",
                 "monthlyGoal": 500,
                 "acceptProviders": True,
@@ -467,6 +467,12 @@ def init_db():
                 "maxHomeProviders": 2,
             }),),
         )
+        platform_row = con.execute("SELECT value FROM settings WHERE key='platform'").fetchone()
+        platform_settings = jload(platform_row["value"], {}) if platform_row else {}
+        if platform_settings.get("nameAr") in (None, "", "فوراً") or platform_settings.get("nameEn") in (None, "", "Fawran"):
+            platform_settings["nameAr"] = "خدماتي"
+            platform_settings["nameEn"] = "Khadamati"
+            con.execute("UPDATE settings SET value=? WHERE key='platform'", (jdump(platform_settings),))
         con.execute("INSERT OR IGNORE INTO settings VALUES('adminHash', ?)", (ADMIN_HASH,))
         if con.execute("SELECT COUNT(*) n FROM admin_users").fetchone()["n"] == 0:
             con.execute(
@@ -1078,7 +1084,7 @@ class Handler(SimpleHTTPRequestHandler):
             with db() as con:
                 con.execute("INSERT INTO provider_requests(id,payload) VALUES(?,?)", (item["id"], jdump(item)))
                 settings = jload(con.execute("SELECT value FROM settings WHERE key='platform'").fetchone()["value"], {})
-            send_whatsapp(settings.get("adminWhatsapp"), f"طلب مزود جديد في فوراً: {item['name']} - {item['phone']} - {item['service']}")
+            send_whatsapp(settings.get("adminWhatsapp"), f"طلب مزود جديد في خدماتي: {item['name']} - {item['phone']} - {item['service']}")
             safe_item = item.copy()
             safe_item.pop("pinHash", None)
             return self.send_json({"ok": True, "request": safe_item}, 201)
@@ -1140,7 +1146,7 @@ class Handler(SimpleHTTPRequestHandler):
                 recompute_provider_quality(con, provider_id)
             log_audit(con, {"kind": "customer", "id": item["phone"]}, "complaint.created", provider_id or "", item["reason"])
             settings = jload(con.execute("SELECT value FROM settings WHERE key='platform'").fetchone()["value"], {})
-        send_whatsapp(settings.get("adminWhatsapp"), f"شكوى جديدة في فوراً: {item['customer_name']} - {item['phone']} - {item['reason']}")
+        send_whatsapp(settings.get("adminWhatsapp"), f"شكوى جديدة في خدماتي: {item['customer_name']} - {item['phone']} - {item['reason']}")
         return self.send_json({"ok": True, "complaint": item}, 201)
 
     def save_lead(self, data):
@@ -1190,7 +1196,7 @@ class Handler(SimpleHTTPRequestHandler):
                     stats[item["kind"]] = int(stats.get(item["kind"], 0)) + 1
                     con.execute("UPDATE providers SET stats=? WHERE id=?", (jdump(stats), item["provider_id"]))
         if data.get("notifyProvider") and provider:
-            send_whatsapp(provider["phone"], f"تنبيه من فوراً: لديك تواصل جديد. {item['note']}".strip())
+            send_whatsapp(provider["phone"], f"تنبيه من خدماتي: لديك تواصل جديد. {item['note']}".strip())
         return self.send_json({"ok": True, "lead": item}, 200 if data.get("id") else 201)
 
     def provider_post(self, path, data):
@@ -1346,7 +1352,7 @@ class Handler(SimpleHTTPRequestHandler):
                         provider["services"] = [{"id": slug("ps"), "catId": cat_id, "serviceId": service_id, "priceFrom": float(payload.get("priceFrom") or 0), "active": True, "areas": [payload.get("wilayah", "")]}]
                     upsert_provider(con, provider)
                     log_audit(con, session, "provider.request.accepted", provider["id"], provider["name"])
-                    send_whatsapp(provider["phone"], "تم قبول حسابك كمزود في فوراً. يمكنك الدخول من بوابة المزودين.")
+                    send_whatsapp(provider["phone"], "تم قبول حسابك كمزود في خدماتي. يمكنك الدخول من بوابة المزودين.")
                 else:
                     log_audit(con, session, "provider.request.rejected", data.get("id", ""), payload.get("name", ""))
                 return self.send_json({"ok": True})
@@ -1465,7 +1471,7 @@ class Handler(SimpleHTTPRequestHandler):
                 )
                 return self.send_json({"ok": True})
             if path == "/api/admin/test-whatsapp":
-                return self.send_json(send_whatsapp(data.get("to"), data.get("message", "اختبار من منصة فوراً")))
+                return self.send_json(send_whatsapp(data.get("to"), data.get("message", "اختبار من منصة خدماتي")))
         self.send_json({"error": "not_found"}, 404)
 
 
@@ -1474,5 +1480,5 @@ if __name__ == "__main__":
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8080"))
     display_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
-    print(f"Fawran platform running: http://{display_host}:{port}", flush=True)
+    print(f"Khadamati platform running: http://{display_host}:{port}", flush=True)
     ThreadingHTTPServer((host, port), Handler).serve_forever()
