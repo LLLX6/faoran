@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
 UPLOAD_DIR = Path(os.environ.get("FORAN_UPLOAD_DIR") or (PUBLIC_DIR / "uploads"))
 DB_PATH = Path(os.environ.get("FORAN_DB_PATH") or (BASE_DIR / "foran.sqlite3"))
-ADMIN_CODE = os.environ.get("FORAN_ADMIN_CODE", "1995")
+ADMIN_CODE = os.environ.get("FORAN_ADMIN_CODE", "0000")
 ADMIN_HASH = hashlib.sha256(ADMIN_CODE.encode("utf-8")).hexdigest()
 TOKENS = {}
 
@@ -324,6 +324,7 @@ def init_db():
               quality_score INTEGER DEFAULT 60, response_score INTEGER DEFAULT 70, subscription_until TEXT DEFAULT '',
               subscription_start TEXT DEFAULT '', provider_type TEXT DEFAULT 'individual', company_name TEXT DEFAULT '', company_id TEXT DEFAULT '',
               commercial_no TEXT DEFAULT '', verification_expiry TEXT DEFAULT '', commercial_expiry TEXT DEFAULT '', license_expiry TEXT DEFAULT '',
+              latitude REAL, longitude REAL, location_updated_at TEXT DEFAULT '',
               stats TEXT NOT NULL DEFAULT '{"views":0,"whatsapp":0,"calls":0}', created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS provider_requests(
@@ -385,6 +386,9 @@ def init_db():
         ensure_column(con, "providers", "verification_expiry", "TEXT DEFAULT ''")
         ensure_column(con, "providers", "commercial_expiry", "TEXT DEFAULT ''")
         ensure_column(con, "providers", "license_expiry", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "latitude", "REAL")
+        ensure_column(con, "providers", "longitude", "REAL")
+        ensure_column(con, "providers", "location_updated_at", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "service_value", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "service_name", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "gov", "TEXT DEFAULT ''")
@@ -479,6 +483,11 @@ def init_db():
                 "INSERT INTO admin_users VALUES(?,?,?,?,?,1,CURRENT_TIMESTAMP)",
                 ("admin_owner", "المالك", ADMIN_HASH, "owner", jdump(ALL_PERMISSIONS)),
             )
+        legacy_admin_hash = hash_secret("1995")
+        con.execute(
+            "UPDATE admin_users SET code_hash=? WHERE id='admin_owner' AND code_hash=?",
+            (ADMIN_HASH, legacy_admin_hash),
+        )
 
 
 def image_url(path):
@@ -514,6 +523,14 @@ def row_provider(r, private=False):
     d["verificationExpiry"] = d.pop("verification_expiry", "")
     d["commercialExpiry"] = d.pop("commercial_expiry", "")
     d["licenseExpiry"] = d.pop("license_expiry", "")
+    latitude = d.pop("latitude", None)
+    longitude = d.pop("longitude", None)
+    location_updated_at = d.pop("location_updated_at", "")
+    d["location"] = (
+        {"lat": latitude, "lng": longitude, "updatedAt": location_updated_at}
+        if latitude is not None and longitude is not None
+        else None
+    )
     d["pinConfigured"] = bool(d.pop("pin_hash", ""))
     if not private:
         d.pop("adminNote", None)
@@ -872,12 +889,13 @@ def upsert_provider(con, data):
     documents = data.get("documents") or existing_provider.get("documents", [])
     if data.get("documentsData"):
         documents = save_many_documents(p["id"], data.get("documentsData"), "doc", 3)
+    location = data.get("location") or existing_provider.get("location") or {}
     con.execute(
         """INSERT INTO providers(id,name,phone,gov,wilayah,areas,bio,hours,status,active,verified,featured,
         package_id,rating,reviews,admin_note,image_path,pin_hash,services,work_images,documents,quality_score,response_score,
         subscription_until,subscription_start,provider_type,company_name,company_id,commercial_no,
-        verification_expiry,commercial_expiry,license_expiry,stats)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        verification_expiry,commercial_expiry,license_expiry,latitude,longitude,location_updated_at,stats)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(id) DO UPDATE SET name=excluded.name,phone=excluded.phone,gov=excluded.gov,
         wilayah=excluded.wilayah,areas=excluded.areas,bio=excluded.bio,hours=excluded.hours,status=excluded.status,
         active=excluded.active,verified=excluded.verified,featured=excluded.featured,package_id=excluded.package_id,
@@ -887,7 +905,8 @@ def upsert_provider(con, data):
         subscription_start=excluded.subscription_start,provider_type=excluded.provider_type,
         company_name=excluded.company_name,company_id=excluded.company_id,commercial_no=excluded.commercial_no,
         verification_expiry=excluded.verification_expiry,commercial_expiry=excluded.commercial_expiry,
-        license_expiry=excluded.license_expiry""",
+        license_expiry=excluded.license_expiry,latitude=excluded.latitude,longitude=excluded.longitude,
+        location_updated_at=excluded.location_updated_at""",
         (
             p["id"], p.get("name", ""), p.get("phone", ""), p.get("gov", ""), p.get("wilayah", ""),
             jdump(p.get("areas", [])), p.get("bio", ""), p.get("hours", ""), p.get("status", "available"),
@@ -907,6 +926,9 @@ def upsert_provider(con, data):
             p.get("verificationExpiry", existing_provider.get("verificationExpiry", "")),
             p.get("commercialExpiry", existing_provider.get("commercialExpiry", "")),
             p.get("licenseExpiry", existing_provider.get("licenseExpiry", "")),
+            location.get("lat"),
+            location.get("lng"),
+            location.get("updatedAt", ""),
             jdump(p.get("stats", existing_provider.get("stats", {"views": 0, "whatsapp": 0, "calls": 0}))),
         ),
     )
@@ -1048,6 +1070,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "businessRole": data.get("businessRole", "").strip(),
                 "gov": data.get("gov", "مسقط"),
                 "wilayah": data.get("wilayah", ""),
+                "location": data.get("location"),
                 "service": data.get("service", ""),
                 "priceFrom": data.get("priceFrom", 0),
                 "note": data.get("note", ""),
@@ -1218,6 +1241,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "licenseExpiry": data.get("licenseExpiry", provider.get("licenseExpiry", "")),
                     "gov": data.get("gov", provider["gov"]),
                     "wilayah": data.get("wilayah", provider["wilayah"]),
+                    "location": data.get("location", provider.get("location")),
                     "areas": data.get("areas", provider["areas"]),
                     "bio": data.get("bio", provider["bio"]),
                     "hours": data.get("hours", provider["hours"]),
@@ -1328,6 +1352,7 @@ class Handler(SimpleHTTPRequestHandler):
                         "businessRole": payload.get("businessRole", ""),
                         "gov": payload.get("gov", ""),
                         "wilayah": payload.get("wilayah", ""),
+                        "location": payload.get("location"),
                         "areas": [payload.get("wilayah", "")],
                         "bio": payload.get("note", ""),
                         "hours": payload.get("hours", ""),

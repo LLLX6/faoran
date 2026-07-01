@@ -11,4 +11,4 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: FORAN_ADMIN_CODE
-        sync: false
+        value: "0000"
