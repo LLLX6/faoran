@@ -1,4 +1,4 @@
-# منصة خدماتي
+﻿# منصة خدماتي
 
 نسخة مطورة من موقع خدماتي الأصلي الموجود في GitHub كمنصة تشغيل حقيقية.
 
@@ -41,17 +41,17 @@ http://127.0.0.1:8080
 0000
 ```
 
-حسابات المزودين التجريبية تستخدم آخر 4 أرقام من الهاتف كرمز دخول:
+حسابات المزودين التجريبية في النسخة المحلية تستخدم الرمز `1234`:
 
 ```text
-سالم البلوشي: 91234567 / 4567
-النخبة للتنظيف: 92345678 / 5678
+سالم البلوشي: 91234567 / 1234
+النخبة للتنظيف: 92345678 / 1234
 ```
 
 لتغيير الرمز في الإنتاج:
 
 ```powershell
-$env:FORAN_ADMIN_CODE="ضع_رمز_قوي"
+$env:KHADAMATI_ADMIN_CODE="ضع_رمز_قوي"
 python server.py
 ```
 
@@ -77,18 +77,18 @@ python server.py
 - `buildCommand`: `pip install -r requirements.txt`
 - `startCommand`: `python server.py`
 - `HOST=0.0.0.0` حتى يقبل الخادم زيارات الإنترنت.
-- `FORAN_DB_PATH=/var/data/foran.sqlite3` لحفظ قاعدة البيانات على قرص دائم.
-- `FORAN_UPLOAD_DIR=/var/data/uploads` لحفظ صور المزودين على قرص دائم.
-- قرص دائم باسم `faoran-data` على المسار `/var/data`.
+- `KHADAMATI_DB_PATH=/var/data/foran.sqlite3` لحفظ قاعدة البيانات على قرص دائم.
+- `KHADAMATI_UPLOAD_DIR=/var/data/uploads` لحفظ صور المزودين على قرص دائم.
+- قرص دائم باسم `khadamati-data` على المسار `/var/data`.
 
 خطوات Render:
 
 1. افتح Render Dashboard.
 2. اختر `New` ثم `Blueprint`.
-3. اربط مستودع GitHub: `LLLX6/faoran`.
-4. عند طلب `FORAN_ADMIN_CODE` ضع رمز إدارة قوي.
+3. اربط مستودع GitHub: `LLLX6/khadamati`.
+4. عند طلب `KHADAMATI_ADMIN_CODE` ضع رمز إدارة قوي.
 5. اضغط `Apply` وانتظر حتى يكتمل البناء.
-6. سيعطيك Render رابطًا من نوع `https://faoran.onrender.com`.
+6. سيعطيك Render رابطًا من نوع `https://khadamati.onrender.com`.
 
 مهم: القرص الدائم ضروري حتى لا تضيع قاعدة البيانات والصور بعد إعادة التشغيل. إذا أردت تجربة مجانية بدون قرص دائم يمكن تشغيل الخدمة بدون `disk`، لكنها لا تصلح كتشغيل إنتاجي يحفظ بيانات العملاء.
 
@@ -106,10 +106,10 @@ WHATSAPP_API_VERSION=v20.0
 
 - `postgres_schema.sql`
 - `POSTGRESQL_MIGRATION.md`
-- `export_data.py`
+- `export_khadamati_data.py`
 
 شغّل التصدير عند الحاجة:
 
 ```powershell
-python export_data.py
+python export_khadamati_data.py
 ```

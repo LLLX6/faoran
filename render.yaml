@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: faoran
+    name: khadamati
     runtime: python
     plan: free
     branch: main
@@ -10,5 +10,5 @@ services:
     envVars:
       - key: HOST
         value: 0.0.0.0
-      - key: FORAN_ADMIN_CODE
+      - key: KHADAMATI_ADMIN_CODE
         value: "0000"

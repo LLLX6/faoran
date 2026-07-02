@@ -15,9 +15,10 @@ import urllib.request
 
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
-UPLOAD_DIR = Path(os.environ.get("FORAN_UPLOAD_DIR") or (PUBLIC_DIR / "uploads"))
-DB_PATH = Path(os.environ.get("FORAN_DB_PATH") or (BASE_DIR / "foran.sqlite3"))
-ADMIN_CODE = os.environ.get("FORAN_ADMIN_CODE", "0000")
+UPLOAD_DIR = Path(os.environ.get("KHADAMATI_UPLOAD_DIR") or os.environ.get("FORAN_UPLOAD_DIR") or (PUBLIC_DIR / "uploads"))
+_legacy_db = BASE_DIR / "foran.sqlite3"
+DB_PATH = Path(os.environ.get("KHADAMATI_DB_PATH") or os.environ.get("FORAN_DB_PATH") or (_legacy_db if _legacy_db.exists() else BASE_DIR / "khadamati.sqlite3"))
+ADMIN_CODE = os.environ.get("KHADAMATI_ADMIN_CODE") or os.environ.get("FORAN_ADMIN_CODE", "0000")
 ADMIN_HASH = hashlib.sha256(ADMIN_CODE.encode("utf-8")).hexdigest()
 TOKENS = {}
 

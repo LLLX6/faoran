@@ -4,8 +4,9 @@ import os
 import sqlite3
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = Path(os.environ.get("FORAN_DB_PATH") or (BASE_DIR / "foran.sqlite3"))
-OUT_PATH = BASE_DIR / "foran-export.json"
+_legacy_db = BASE_DIR / "foran.sqlite3"
+DB_PATH = Path(os.environ.get("KHADAMATI_DB_PATH") or os.environ.get("FORAN_DB_PATH") or (_legacy_db if _legacy_db.exists() else BASE_DIR / "khadamati.sqlite3"))
+OUT_PATH = BASE_DIR / "khadamati-export.json"
 
 
 def rows(con, table):
