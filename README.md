@@ -85,7 +85,7 @@ python server.py
 
 1. افتح Render Dashboard.
 2. اختر `New` ثم `Blueprint`.
-3. اربط مستودع GitHub: `LLLX6/khadamati`.
+3. اربط مستودع GitHub الحالي: `LLLX6/faoran` (اسم التطبيق داخله: خدماتي).
 4. عند طلب `KHADAMATI_ADMIN_CODE` ضع رمز إدارة قوي.
 5. اضغط `Apply` وانتظر حتى يكتمل البناء.
 6. سيعطيك Render رابطًا من نوع `https://khadamati.onrender.com`.
