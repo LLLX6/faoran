@@ -195,6 +195,7 @@ body{background:var(--bg)}
 .role-onboarding{width:min(920px,100%);height:min(760px,calc(100dvh - 36px));overflow:hidden;border:1px solid rgba(255,255,255,.5);border-radius:28px;background:var(--panel);box-shadow:0 34px 110px rgba(5,20,35,.34);display:grid;grid-template-rows:auto minmax(0,1fr) auto}
 .onboarding-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line)}
 .onboarding-brand{display:flex;align-items:center;gap:9px;font-weight:950}.onboarding-brand .image-mark{width:38px;height:38px;border-radius:13px}
+.role-onboarding svg{width:20px;height:20px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .onboarding-skip{border:0;background:transparent;color:var(--muted);font-weight:900;padding:9px 10px;border-radius:12px}.onboarding-skip:hover{background:var(--panel2);color:var(--ink)}
 .onboarding-main{min-height:0;display:grid;grid-template-columns:minmax(300px,.9fr) minmax(330px,1.1fr);align-items:stretch}
 .onboarding-visual{position:relative;min-height:0;overflow:hidden;background:linear-gradient(150deg,#eef8f7,#f8fafc 58%,#fff7e5)}
@@ -205,7 +206,7 @@ body{background:var(--bg)}
 .onboarding-copy h2{font-size:clamp(1.7rem,4vw,2.55rem);line-height:1.2;letter-spacing:0;margin:16px 0 10px}
 .onboarding-copy>p{color:var(--muted);font-size:1rem;line-height:1.8;margin:0;max-width:520px}
 .onboarding-benefits{display:grid;gap:9px;margin-top:22px}.onboarding-benefit{display:flex;align-items:center;gap:10px;font-weight:850;font-size:.9rem}
-.onboarding-benefit>span{flex:0 0 34px;width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:var(--panel2);color:var(--brand2)}
+.onboarding-benefit>span{flex:0 0 34px;width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:var(--panel2);color:var(--brand2)}.onboarding-benefit svg{width:18px;height:18px}
 .onboarding-bottom{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--panel)}
 .onboarding-dots{display:flex;align-items:center;justify-content:center;gap:7px}.onboarding-dot{width:7px;height:7px;border:0;padding:0;border-radius:99px;background:var(--soft);transition:.2s ease}.onboarding-dot.active{width:24px;background:linear-gradient(90deg,var(--brand2),var(--accent))}
 .onboarding-step{font-size:.78rem;color:var(--muted);font-weight:900;white-space:nowrap}.onboarding-actions{display:flex;align-items:center;gap:8px;justify-content:flex-end}
