@@ -1,9 +1,10 @@
-const CACHE_NAME = 'khadamati-shell-v22';
+const CACHE_NAME = 'khadamati-shell-v23';
 const SHELL = [
   './',
   './index.html',
   './app-icon-192.png',
   './app-icon-512.png',
+  './assets/onboarding/khadamati-onboarding.webp',
   './vendor/leaflet.css',
   './vendor/leaflet.js'
 ];

@@ -190,6 +190,43 @@ body{background:var(--bg)}
  .brand-word{display:none}.search-suggestion-list{grid-template-columns:1fr!important}.compact-hero h1{font-size:.88rem!important}.compact-hero .ready-badge{font-size:.52rem!important}
  .clean-grid .market-tile strong,.service-strip .market-tile strong{font-size:.62rem!important}.home-map-prompt small{display:none}
 }
+/* Khadamati v23: role-aware first-run onboarding. */
+.onboarding-backdrop{position:fixed;inset:0;z-index:240;display:grid;place-items:center;background:rgba(7,18,30,.72);backdrop-filter:blur(14px);padding:18px}
+.role-onboarding{width:min(920px,100%);height:min(760px,calc(100dvh - 36px));overflow:hidden;border:1px solid rgba(255,255,255,.5);border-radius:28px;background:var(--panel);box-shadow:0 34px 110px rgba(5,20,35,.34);display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.onboarding-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.onboarding-brand{display:flex;align-items:center;gap:9px;font-weight:950}.onboarding-brand .image-mark{width:38px;height:38px;border-radius:13px}
+.onboarding-skip{border:0;background:transparent;color:var(--muted);font-weight:900;padding:9px 10px;border-radius:12px}.onboarding-skip:hover{background:var(--panel2);color:var(--ink)}
+.onboarding-main{min-height:0;display:grid;grid-template-columns:minmax(300px,.9fr) minmax(330px,1.1fr);align-items:stretch}
+.onboarding-visual{position:relative;min-height:0;overflow:hidden;background:linear-gradient(150deg,#eef8f7,#f8fafc 58%,#fff7e5)}
+.onboarding-visual img{width:100%;height:100%;display:block;object-fit:cover;object-position:center 52%}
+.onboarding-role-chip{position:absolute;top:16px;inset-inline-start:16px;display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid rgba(255,255,255,.75);border-radius:999px;background:rgba(255,255,255,.86);backdrop-filter:blur(12px);box-shadow:0 8px 24px rgba(16,42,67,.10);font-size:.78rem;font-weight:950;color:#102a43}
+.onboarding-copy{min-width:0;display:flex;flex-direction:column;justify-content:center;padding:clamp(24px,5vw,54px)}
+.onboarding-kicker{display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%;padding:7px 10px;border-radius:999px;background:rgba(21,160,133,.09);color:#0d7f6b;font-size:.75rem;font-weight:950}
+.onboarding-copy h2{font-size:clamp(1.7rem,4vw,2.55rem);line-height:1.2;letter-spacing:0;margin:16px 0 10px}
+.onboarding-copy>p{color:var(--muted);font-size:1rem;line-height:1.8;margin:0;max-width:520px}
+.onboarding-benefits{display:grid;gap:9px;margin-top:22px}.onboarding-benefit{display:flex;align-items:center;gap:10px;font-weight:850;font-size:.9rem}
+.onboarding-benefit>span{flex:0 0 34px;width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:var(--panel2);color:var(--brand2)}
+.onboarding-bottom{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--panel)}
+.onboarding-dots{display:flex;align-items:center;justify-content:center;gap:7px}.onboarding-dot{width:7px;height:7px;border:0;padding:0;border-radius:99px;background:var(--soft);transition:.2s ease}.onboarding-dot.active{width:24px;background:linear-gradient(90deg,var(--brand2),var(--accent))}
+.onboarding-step{font-size:.78rem;color:var(--muted);font-weight:900;white-space:nowrap}.onboarding-actions{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.onboarding-button{min-height:44px;border-radius:15px;padding:10px 16px;border:1px solid var(--line);background:var(--panel);font-weight:950}.onboarding-button.primary{min-width:126px;border:0;background:linear-gradient(135deg,var(--brand2),var(--accent));color:#fff;box-shadow:0 10px 24px rgba(21,160,133,.2)}
+.onboarding-button:disabled{visibility:hidden}.onboarding-arrow{display:inline-block;margin-inline-start:7px}
+@media(max-width:700px){
+ .onboarding-backdrop{padding:0;background:var(--panel);backdrop-filter:none}
+ .role-onboarding{width:100%;height:100dvh;border:0;border-radius:0;box-shadow:none}
+ .onboarding-top{padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px}
+ .onboarding-main{display:flex;flex-direction:column;overflow:auto}
+ .onboarding-visual{flex:0 0 clamp(235px,42dvh,360px);min-height:235px}
+ .onboarding-visual img{object-fit:cover;object-position:center 54%}
+ .onboarding-role-chip{top:12px;inset-inline-start:12px}
+ .onboarding-copy{justify-content:flex-start;padding:20px 20px 16px}
+ .onboarding-copy h2{font-size:1.55rem;margin:12px 0 7px}.onboarding-copy>p{font-size:.9rem;line-height:1.65}
+ .onboarding-benefits{grid-template-columns:1fr 1fr;gap:7px;margin-top:15px}.onboarding-benefit{font-size:.76rem;align-items:flex-start}.onboarding-benefit>span{width:30px;height:30px;flex-basis:30px;border-radius:10px}
+ .onboarding-bottom{grid-template-columns:auto 1fr;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));gap:8px}.onboarding-step{display:none}.onboarding-dots{justify-content:flex-start}.onboarding-actions{gap:6px}.onboarding-button{min-height:42px;padding:9px 12px}.onboarding-button.primary{min-width:104px}
+}
+@media(max-width:370px), (max-height:680px){
+ .onboarding-visual{flex-basis:220px;min-height:205px}.onboarding-copy{padding:14px 16px 10px}.onboarding-copy h2{font-size:1.3rem}.onboarding-copy>p{font-size:.82rem}.onboarding-benefits{margin-top:10px}.onboarding-benefit:nth-child(n+3){display:none}
+}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -203,11 +240,13 @@ body{background:var(--bg)}
 'use strict';
 const STORAGE_KEY = 'KHADAMATI_MARKET_OS_V20';
 const LEGACY_STORAGE_KEYS = ['FORAN_MARKET_OS_V14'];
+const ONBOARDING_STORAGE_KEY = 'KHADAMATI_ONBOARDING_V1';
 const ADMIN_CODE = '0000';
 const OTP_CODE = '1234';
 const CONTACT_EMAIL = 'foranoman@gmail.com';
 const IMAGE_EDITS = new Map();
 let IMAGE_EDITOR = null;
+let ONBOARDING_FLOW = null;
 const OMAN_COORDS = {
  'مسقط':[23.5880,58.3829],'السيب':[23.6703,58.1891],'بوشر':[23.5653,58.4202],'مطرح':[23.6165,58.5659],'العامرات':[23.4834,58.4995],'قريات':[23.2620,58.9160],
  'الداخلية':[22.9333,57.5333],'نزوى':[22.9333,57.5333],'بهلاء':[22.9670,57.2980],'منح':[22.7980,57.5760],
@@ -1273,6 +1312,11 @@ function deleteAccountSheet(kind='user'){
  openModal(`<div class="modal sheet"><div class="modal-head"><div class="modal-title">${L('حذف الحساب','Delete account')}</div><button class="close-btn" data-action="closeModal">×</button></div><div class="modal-body"><div class="guest-note">${L('سيتم حذف الحساب من هذا الجهاز بعد التحقق من الرمز. لا يمكن التراجع عن هذه الخطوة من داخل التطبيق.','The account will be removed from this device after PIN verification. This cannot be undone in the app.')}</div><div class="field" style="margin-top:12px"><label>${L('رمز الدخول','Access code')}</label><input class="input" id="deleteAccountPin" type="password" inputmode="numeric" autocomplete="current-password"></div><input type="hidden" id="deleteAccountKind" value="${esc(kind)}"><button class="pill-btn danger" data-action="confirmDeleteAccount" style="width:100%;margin-top:14px">${L('تأكيد حذف الحساب','Confirm account deletion')}</button></div></div>`);
 }
 function showUnreadOnLogin(target,id=''){
+ const role=target==='provider'?(providerType(getProvider(id)||{})==='company'?'company':'provider'):target==='user'?'user':'';
+ if(role&&!onboardingSeen(role,id)){
+  showRoleOnboarding(role,id,()=>showUnreadOnLogin(target,id));
+  return;
+ }
  const unread=targetNotifications(target,id).filter(n=>!n.read);
  if(!unread.length)return;
  setTimeout(()=>notificationsSheet(),160);
@@ -1542,6 +1586,71 @@ function refreshProviderRegisterType(){
 function openAdminLogin(){ openModal(`<div class="modal"><div class="modal-head"><div class="modal-title">${tr('adminLogin')}</div><button class="close-btn" data-action="closeModal">×</button></div><div class="modal-body"><div class="field"><label>${tr('code')}</label><input class="input" id="adminCode" type="password"></div><button class="pill-btn primary" data-action="adminLogin" style="margin-top:14px">${tr('login')}</button></div></div>`); }
 function openModal(html){ document.getElementById('modalRoot').innerHTML=`<div class="modal-backdrop show" data-action="closeModalSoft">${html}</div>`; localizeStaticDom(); }
 function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+function onboardingStore(){
+ try{return JSON.parse(localStorage.getItem(ONBOARDING_STORAGE_KEY)||'{}')||{};}catch(_){return {};}
+}
+function onboardingKey(role,identity){
+ const safeIdentity=String(identity||'device').trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06ff_-]+/g,'-').slice(0,72)||'device';
+ return `${role}:${safeIdentity}`;
+}
+function onboardingSeen(role,identity){return !!onboardingStore()[onboardingKey(role,identity)];}
+function markOnboardingSeen(role,identity){
+ const seen=onboardingStore();
+ seen[onboardingKey(role,identity)]={completedAt:nowISO(),version:1};
+ try{localStorage.setItem(ONBOARDING_STORAGE_KEY,JSON.stringify(seen));}catch(_){}
+}
+function onboardingRoleLabel(role){
+ return role==='company'?L('شركة','Company'):role==='provider'?L('مزود خدمة','Service provider'):role==='guest'?L('زائر','Visitor'):L('مستخدم','Customer');
+}
+function roleOnboardingSlides(role){
+ const sharedImage='assets/onboarding/khadamati-onboarding.webp';
+ const slides={
+  user:[
+   {k:L('ابدأ باحتياجك','Start with your need'),t:L('الخدمة المناسبة أقرب مما تتوقع','The right service is closer than you think'),d:L('ابحث بكلمة بسيطة أو اشرح المشكلة لمساعدك الشخصي، وسنقترح عليك التخصص الأنسب.','Search with a simple word or describe the issue to your personal assistant and we will suggest the right specialty.'),b:[[L('بحث سريع وواضح','Fast, clear search'),'search'],[L('اقتراح ذكي للخدمة','Smart service suggestion'),'sparkle']]},
+   {k:L('طلب واحد منظم','One organized request'),t:L('أرسل التفاصيل والموقع مرة واحدة','Send the details and location once'),d:L('حدد المكان والموعد، وأرفق صورة للمشكلة عند الحاجة، ليصل طلبك إلى المزودين المناسبين.','Set the location and time, and attach a problem photo when needed so your request reaches matching providers.'),b:[[L('موقع وموعد دقيقان','Precise location and time'),'map'],[L('صور وتفاصيل محفوظة','Saved photos and details'),'chat']]},
+   {k:L('متابعة بثقة','Follow with confidence'),t:L('اختر مزودك وتابع الطلب حتى الإنجاز','Choose your provider and track the request to completion'),d:L('تصلك تحديثات القبول والحالة داخل حسابك، ويمكنك الرجوع إلى طلباتك وتقييم التجربة بسهولة.','Acceptance and status updates arrive in your account, where you can revisit requests and rate the experience.'),b:[[L('إشعارات مباشرة','Instant updates'),'bell'],[L('متابعة وتقييم','Tracking and rating'),'shield']]}
+  ],
+  guest:[
+   {k:L('تصفح بلا التزام','Browse freely'),t:L('اكتشف خدماتي قبل إنشاء حساب','Discover Khadamati before creating an account'),d:L('تصفح الأقسام والخدمات المتاحة في عُمان واستخدم البحث والمساعد الشخصي بحرية.','Browse categories and services available in Oman and freely use search and the personal assistant.'),b:[[L('كل الخدمات أمامك','All services at a glance'),'grid'],[L('بحث من أول حرف','Search from the first letter'),'search']]},
+   {k:L('اعرف من حولك','Know what is nearby'),t:L('شاهد المزودين والشركات الأقرب','See nearby providers and companies'),d:L('استخدم الخريطة والفلاتر لمقارنة التخصص والموقع والتوفر من دون إظهار بيانات التواصل.','Use the map and filters to compare specialty, location, and availability without exposing contact details.'),b:[[L('خريطة الأقرب إليك','Nearby map'),'map'],[L('مقارنة مرتبة','Organized comparison'),'user']]},
+   {k:L('عندما تكون جاهزاً','When you are ready'),t:L('سجّل برقم هاتفك لإرسال الطلب','Sign in with your phone to send a request'),d:L('التصفح يبقى متاحاً، وعند الطلب أو التواصل سنطلب دخولاً سريعاً لحماية حسابك وطلباتك.','Browsing stays available. When requesting or contacting, quick sign-in protects your account and requests.'),b:[[L('دخول سريع','Quick sign-in'),'phone'],[L('خصوصية أفضل','Better privacy'),'shield']]}
+  ],
+  provider:[
+   {k:L('واجهة أعمالك','Your business workspace'),t:L('أكمل ملفك ليعرفك العميل بسرعة','Complete your profile so customers know you quickly'),d:L('أضف تخصصك ومناطق خدمتك وصور أعمالك، واختر الصورة الرئيسية التي تمثلك باحتراف.','Add your specialty, service areas, and work photos, then choose the main image that represents you professionally.'),b:[[L('ملف مهني واضح','Clear professional profile'),'user'],[L('أعمالك في مكان واحد','Your work in one place'),'grid']]},
+   {k:L('طلبات مناسبة لك','Requests matched to you'),t:L('استقبل الطلبات حسب خدمتك وموقعك','Receive requests based on your service and location'),d:L('يصلك إشعار عند وجود طلب مناسب، ويمكنك مراجعة التفاصيل والصور والموقع قبل القبول.','You are notified of matching requests and can review details, photos, and location before accepting.'),b:[[L('مطابقة حسب التخصص','Specialty matching'),'sparkle'],[L('تنبيهات فورية','Instant alerts'),'bell']]},
+   {k:L('إدارة يومك','Manage your day'),t:L('حدّث توفرك وتابع أداءك بسهولة','Update availability and track performance easily'),d:L('بدّل حالتك بين متاح ومشغول وغير متاح، وأدر الخدمات والاشتراك والطلبات من لوحة واحدة.','Switch between available, busy, and unavailable, and manage services, subscription, and requests from one place.'),b:[[L('تحكم سريع بالتوفر','Quick availability control'),'settings'],[L('طلبات واشتراك منظم','Organized requests and plan'),'wallet']]}
+  ],
+  company:[
+   {k:L('حضور شركتك','Your company presence'),t:L('اعرض هوية الشركة وخدماتها بوضوح','Present your company and services clearly'),d:L('أنشئ ملفاً موحداً للشركة، أضف خدمات الفريق ومناطق التغطية، واختر أفضل صورة للبطاقة.','Create one company profile, add team services and coverage areas, and select the best card image.'),b:[[L('هوية موحدة','Unified identity'),'shield'],[L('خدمات متعددة','Multiple services'),'grid']]},
+   {k:L('تشغيل أكثر كفاءة','More efficient operations'),t:L('استقبل الطلبات المناسبة لفريقك','Receive requests that fit your team'),d:L('راجع موقع العميل والصور والموعد، ثم اقبل الطلب أو اتركه ضمن مركز الطلبات للمتابعة لاحقاً.','Review the customer location, photos, and time, then accept the request or keep it in the request center for later.'),b:[[L('تفاصيل قبل القبول','Details before accepting'),'map'],[L('متابعة مركزية','Central tracking'),'chat']]},
+   {k:L('نمو يمكن قياسه','Measurable growth'),t:L('أدر الباقة والخدمات والأداء من لوحة واحدة','Manage plans, services, and performance in one dashboard'),d:L('تابع حالة الاشتراك والتنبيهات والطلبات، ووسّع ظهور الشركة عندما تحتاج إلى خدمات أو صور إضافية.','Track subscription status, alerts, and requests, and expand company visibility when you need more services or photos.'),b:[[L('تنبيهات الباقة','Plan alerts'),'bell'],[L('أداء وفرص نمو','Performance and growth'),'sparkle']]}
+  ]
+ };
+ return (slides[role]||slides.user).map(slide=>({...slide,image:sharedImage}));
+}
+function showRoleOnboarding(role,identity,onDone){
+ const normalized=['user','guest','provider','company'].includes(role)?role:'user';
+ if(onboardingSeen(normalized,identity)){if(typeof onDone==='function')onDone();return false;}
+ ONBOARDING_FLOW={role:normalized,identity:identity||'device',step:0,slides:roleOnboardingSlides(normalized),onDone};
+ renderRoleOnboarding();
+ return true;
+}
+function renderRoleOnboarding(){
+ if(!ONBOARDING_FLOW)return;
+ const flow=ONBOARDING_FLOW,slide=flow.slides[flow.step],last=flow.step===flow.slides.length-1;
+ const nextArrow=dirFor(S.lang)==='rtl'?'←':'→',backArrow=dirFor(S.lang)==='rtl'?'→':'←';
+ const finishLabel=flow.role==='guest'?L('ابدأ التصفح','Start browsing'):flow.role==='provider'||flow.role==='company'?L('افتح لوحة أعمالي','Open my workspace'):L('ابدأ مع خدماتي','Start with Khadamati');
+ document.getElementById('modalRoot').innerHTML=`<div class="onboarding-backdrop"><section class="role-onboarding" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle"><header class="onboarding-top"><div class="onboarding-brand">${logoMark()}<span>${L('مرحباً بك في خدماتي','Welcome to Khadamati')}</span></div><button class="onboarding-skip" data-action="skipOnboarding">${L('تخطي','Skip')}</button></header><div class="onboarding-main"><div class="onboarding-visual"><img src="${slide.image}" alt="${L('خدمات موثوقة في عُمان','Trusted services in Oman')}" width="720" height="1560" decoding="async"><span class="onboarding-role-chip">${icon(flow.role==='company'?'shield':flow.role==='provider'?'user':flow.role==='guest'?'eye':'home')} ${onboardingRoleLabel(flow.role)}</span></div><div class="onboarding-copy"><span class="onboarding-kicker">${icon('sparkle')} ${esc(slide.k)}</span><h2 id="onboardingTitle">${esc(slide.t)}</h2><p>${esc(slide.d)}</p><div class="onboarding-benefits">${slide.b.map(([text,ic])=>`<div class="onboarding-benefit"><span>${icon(ic)}</span><b>${esc(text)}</b></div>`).join('')}</div></div></div><footer class="onboarding-bottom"><span class="onboarding-step">${L(`الخطوة ${flow.step+1} من ${flow.slides.length}`,`Step ${flow.step+1} of ${flow.slides.length}`)}</span><div class="onboarding-dots">${flow.slides.map((_,i)=>`<button class="onboarding-dot ${i===flow.step?'active':''}" data-action="onboardingGo" data-step="${i}" aria-label="${L(`الخطوة ${i+1}`,`Step ${i+1}`)}"></button>`).join('')}</div><div class="onboarding-actions"><button class="onboarding-button" data-action="onboardingBack" ${flow.step===0?'disabled':''} aria-label="${L('السابق','Previous')}">${backArrow}</button><button class="onboarding-button primary" data-action="${last?'finishOnboarding':'onboardingNext'}">${last?finishLabel:L('التالي','Next')}<span class="onboarding-arrow">${last?'✓':nextArrow}</span></button></div></footer></section></div>`;
+ document.querySelector('.onboarding-button.primary')?.focus({preventScroll:true});
+}
+function finishRoleOnboarding(){
+ if(!ONBOARDING_FLOW)return;
+ const {role,identity,onDone}=ONBOARDING_FLOW;
+ markOnboardingSeen(role,identity);
+ ONBOARDING_FLOW=null;
+ closeModal();
+ if(typeof onDone==='function')onDone();
+}
 function val(id){ return document.getElementById(id)?.value?.trim() || ''; }
 function checked(id){ return !!document.getElementById(id)?.checked; }
 function wordCount(text){ return String(text||'').trim().split(/\s+/).filter(Boolean).length; }
@@ -1661,10 +1770,16 @@ function bindDynamic(){
   const result=document.getElementById('assistantResult');if(result)result.innerHTML=assistantResultHtml(assistant.value);
   clearTimeout(window.__khadamatiAssistantTimer);
   window.__khadamatiAssistantTimer=setTimeout(()=>{if(assistant.value.trim().length>=2){recordAssistantSearch(assistant.value,assistantAnalyze(assistant.value));localStorage.setItem(STORAGE_KEY,JSON.stringify(S));}},650);
- });
- refreshProviderRegisterType();
- initLeafletMaps();
-}
+  });
+  refreshProviderRegisterType();
+  initLeafletMaps();
+  if(S.view==='provider'){
+   const active=[...(S.providers||[]),...(S.providerRequests||[])].find(p=>p.id===S.currentProviderId);
+   if(active?.pending&&!onboardingSeen(providerType(active)==='company'?'company':'provider',active.id)){
+    setTimeout(()=>{const role=providerType(active)==='company'?'company':'provider';if(!ONBOARDING_FLOW&&!document.getElementById('modalRoot')?.innerHTML&&!onboardingSeen(role,active.id))showRoleOnboarding(role,active.id);},0);
+   }
+  }
+ }
 function nav(view){ S.lastView=S.view; S.view=view; if(view==='search') S.search=S.search||{}; save(); render(); window.scrollTo({top:0,behavior:'auto'}); }
 let brandTapCount=0, brandTapTimer=null;
 function secretBrandTap(){
@@ -1734,10 +1849,15 @@ function simpleFinanceForm(kind){ openModal(`<div class="modal"><div class="moda
 function sponsorForm(){ openModal(`<div class="modal"><div class="modal-head"><div class="modal-title">${tr('sponsors')}</div><button class="close-btn" data-action="closeModal">×</button></div><div class="modal-body"><div class="two-col"><div class="field"><label>${tr('sponsorName')}</label><input class="input" id="spName"></div><div class="field"><label>${tr('amount')}</label><input class="input" type="number" id="spAmount"></div><div class="field"><label>${tr('startDate')}</label><input class="input" type="date" id="spStart"></div><div class="field"><label>${tr('endDate')}</label><input class="input" type="date" id="spEnd"></div></div><button class="pill-btn primary" data-action="saveSponsor" style="margin-top:14px">${tr('save')}</button></div></div>`); }
 function couponForm(){ openModal(`<div class="modal"><div class="modal-head"><div class="modal-title">${tr('coupons')}</div><button class="close-btn" data-action="closeModal">×</button></div><div class="modal-body"><div class="two-col"><div class="field"><label>${tr('couponCode')}</label><input class="input" id="cpCode"></div><div class="field"><label>${tr('discount')}</label><input class="input" type="number" id="cpValue"></div></div><button class="pill-btn primary" data-action="saveCoupon" style="margin-top:14px">${tr('save')}</button></div></div>`); }
 async function onClick(e){ const el=e.target.closest('[data-action]'); if(!el)return; const a=el.dataset.action; if(a==='closeModalSoft'&&e.target!==el)return; const id=el.dataset.id; try{
+ if(a==='onboardingNext'){if(ONBOARDING_FLOW){ONBOARDING_FLOW.step=Math.min(ONBOARDING_FLOW.step+1,ONBOARDING_FLOW.slides.length-1);renderRoleOnboarding();}return;}
+ if(a==='onboardingBack'){if(ONBOARDING_FLOW){ONBOARDING_FLOW.step=Math.max(0,ONBOARDING_FLOW.step-1);renderRoleOnboarding();}return;}
+ if(a==='onboardingGo'){if(ONBOARDING_FLOW){ONBOARDING_FLOW.step=Math.max(0,Math.min(Number(el.dataset.step||0),ONBOARDING_FLOW.slides.length-1));renderRoleOnboarding();}return;}
+ if(a==='finishOnboarding'||a==='skipOnboarding'){finishRoleOnboarding();return;}
+ if(a==='enterGuest'){startGuestSession();S.entrySeen=true;S.splashSeen=true;S.view='home';save();closeModal();render();showRoleOnboarding('guest','device');return;}
  if(a==='adSlide'){showAdSlide(Number(el.dataset.index||0));startAdSlider();return;}
- if(a==='customerLogin'){const phone=val('customerLoginPhone');if(!phone){markInvalid('customerLoginPhone','أكمل رقم الهاتف.');return;}try{let user;try{const res=await api('/api/users/login',{phone,name:val('customerLoginName'),pin:val('customerLoginPin'),gov:S.user.gov,wilayah:S.user.wilayah,location:S.user.location});AUTH.userToken=res.token;AUTH.adminToken='';AUTH.providerToken='';saveAuth();user=res.user;const local=registerUserLogin(user.phone,user.name,val('customerLoginPin'));Object.assign(local,user);S.user={...S.user,...user,location:normalizeCoordinates({lat:user.latitude,lng:user.longitude})||S.user.location};S.session={mode:'user',userId:user.id};const fresh=await api('/api/bootstrap',null,AUTH.userToken);mergeRemote(fresh);}catch(remoteErr){if(String(remoteErr?.message||remoteErr)!=='request_failed')throw remoteErr;user=registerUserLogin(phone,val('customerLoginName'),val('customerLoginPin'));}clearFailedLogin('user',phone);S.entrySeen=true;S.splashSeen=true;S.view='home';save();closeModal();render();showUnreadOnLogin('user',user.id);}catch(err){if(['invalid_user_pin','account_inactive'].includes(String(err?.message||err))){const count=recordFailedLogin('user',phone);markInvalid('customerLoginPin',count>=3?L('تكررت المحاولة. استخدم استرجاع الرمز.','Too many attempts. Use code recovery.'):niceError(err));}else markInvalid('customerLoginPhone',niceError(err));}return;}
+ if(a==='customerLogin'){const phone=val('customerLoginPhone');if(!phone){markInvalid('customerLoginPhone','أكمل رقم الهاتف.');return;}try{let user;try{const res=await api('/api/users/login',{phone,name:val('customerLoginName'),pin:val('customerLoginPin'),gov:S.user.gov,wilayah:S.user.wilayah,location:S.user.location});AUTH.userToken=res.token;AUTH.adminToken='';AUTH.providerToken='';saveAuth();user=res.user;const local=registerUserLogin(user.phone,user.name,val('customerLoginPin'));Object.assign(local,user);S.user={...S.user,...user,location:normalizeCoordinates({lat:user.latitude,lng:user.longitude})||S.user.location};S.session={mode:'user',userId:user.id};const fresh=await api('/api/bootstrap',null,AUTH.userToken);mergeRemote(fresh);}catch(remoteErr){if(String(remoteErr?.message||remoteErr)!=='request_failed')throw remoteErr;user=registerUserLogin(phone,val('customerLoginName'),val('customerLoginPin'));}clearFailedLogin('user',phone);S.entrySeen=true;S.splashSeen=true;S.view='home';save();closeModal();render();showRoleOnboarding('user',user.id||user.phone,()=>showUnreadOnLogin('user',user.id));}catch(err){if(['invalid_user_pin','account_inactive'].includes(String(err?.message||err))){const count=recordFailedLogin('user',phone);markInvalid('customerLoginPin',count>=3?L('تكررت المحاولة. استخدم استرجاع الرمز.','Too many attempts. Use code recovery.'):niceError(err));}else markInvalid('customerLoginPhone',niceError(err));}return;}
  if(a==='customerLogout'){AUTH.userToken='';saveAuth();S.session={mode:'none',userId:''};S.user={name:'',phone:'',gov:S.platform.defaultGov||'مسقط',wilayah:'السيب',avatar:'',location:null,accessPin:''};S.view='entry';save();render();window.scrollTo(0,0);return;}
- if(a==='providerLogin'){const phone=val('loginPhone'),code=val('loginOtp'),local=[...(S.providers||[]),...(S.providerRequests||[])].find(x=>phoneClean(x.phone)===phoneClean(phone));if(local&&!local.pin&&code===OTP_CODE){S.currentProviderId=local.id;S.providerLoginMemory={phone:phoneClean(local.phone),name:local.name};clearFailedLogin('provider',phone);S.view='provider';S.providerTab='home';save();closeModal();render();showUnreadOnLogin('provider',local.id);return;}}
+ if(a==='providerLogin'){const phone=val('loginPhone'),code=val('loginOtp'),local=[...(S.providers||[]),...(S.providerRequests||[])].find(x=>phoneClean(x.phone)===phoneClean(phone));if(local&&!local.pin&&code===OTP_CODE){S.currentProviderId=local.id;S.providerLoginMemory={phone:phoneClean(local.phone),name:local.name};clearFailedLogin('provider',phone);S.view='provider';S.providerTab='home';save();closeModal();render();showRoleOnboarding(providerType(local)==='company'?'company':'provider',local.id,()=>showUnreadOnLogin('provider',local.id));return;}}
  if(a==='openAppearance'){appearanceSheet();return;}
  if(a==='setTheme'){const choice=el.dataset.value||'light';S.theme=choice==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):choice;save();appearanceSheet();return;}
  if(a==='setDisplayScale'){S.platform.displayScale=el.dataset.value||'normal';save();document.body.dataset.scale=S.platform.displayScale;appearanceSheet();return;}
