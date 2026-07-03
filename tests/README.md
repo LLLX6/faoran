@@ -18,4 +18,8 @@ Mobile user/provider flow test (requires Playwright and Chrome):
 node tests/smoke-ui.js
 ```
 
+The UI flow covers offer comparison, text/image/voice chat, calendar export,
+arrival tracking, provider video, and the before/after gallery. The API flow
+also verifies waitlist matching and cross-account request collaboration.
+
 Set `KHADAMATI_TEST_URL` to test another local or deployed URL.

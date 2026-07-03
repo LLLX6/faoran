@@ -40,12 +40,93 @@ def main():
     status, invalid_user = request("/api/users/login", {"phone": "12", "name": "test"})
     assert status >= 400 and invalid_user.get("error"), "User validation did not reject an invalid phone"
 
+    status, user = request(
+        "/api/users/login",
+        {"phone": "95550009", "name": "مستخدم اختبار التعاون", "pin": "2468", "gov": "مسقط", "wilayah": "السيب"},
+    )
+    assert status == 200 and user.get("token"), "Collaboration test user login failed"
+    user_token = user["token"]
+    provider_token = provider["token"]
+
+    status, created = request(
+        "/api/user/requests",
+        {
+            "serviceValue": "homecare|electrician",
+            "serviceName": "كهربائي",
+            "customerName": "مستخدم اختبار التعاون",
+            "gov": "مسقط",
+            "wilayah": "السيب",
+            "location": {"lat": 23.62, "lng": 58.22},
+            "urgency": "normal",
+            "scheduleType": "specific",
+            "requestedAt": "2026-07-10T09:00",
+            "note": "اختبار العرض والمحادثة والتتبع",
+        },
+        user_token,
+    )
+    assert status in (200, 201) and created.get("request", {}).get("id"), "Request creation failed"
+    request_id = created["request"]["id"]
+
+    status, waitlisted = request(
+        "/api/request/collaboration",
+        {"id": request_id, "action": "waitlist", "enabled": True},
+        user_token,
+    )
+    assert status == 200 and waitlisted["request"]["waitlisted"], "Waitlist update failed"
+
+    status, offered = request(
+        "/api/request/collaboration",
+        {
+            "id": request_id,
+            "action": "offer",
+            "price": 12,
+            "duration": "خلال ساعتين",
+            "note": "يشمل المعاينة والتنفيذ",
+        },
+        provider_token,
+    )
+    offers = offered.get("request", {}).get("offers", [])
+    assert status == 200 and len(offers) == 1, "Provider offer failed"
+
+    status, selected = request(
+        "/api/request/collaboration",
+        {"id": request_id, "action": "choose_offer", "offerId": offers[0]["id"]},
+        user_token,
+    )
+    assert status == 200 and selected["request"]["acceptedProviderId"] == provider["provider"]["id"], "Offer selection failed"
+
+    status, chatted = request(
+        "/api/request/collaboration",
+        {"id": request_id, "action": "message", "text": "تم تأكيد الموعد"},
+        user_token,
+    )
+    assert status == 200 and chatted["request"]["messages"], "Request chat failed"
+
+    status, tracked = request(
+        "/api/request/collaboration",
+        {
+            "id": request_id,
+            "action": "arrival",
+            "status": "onTheWay",
+            "location": {"lat": 23.61, "lng": 58.24, "accuracy": 8},
+            "etaMinutes": 14,
+        },
+        provider_token,
+    )
+    assert status == 200 and tracked["request"]["arrival"]["etaMinutes"] == 14, "Arrival tracking failed"
+
+    request("/api/user/requests", {"id": request_id, "action": "cancel"}, user_token)
+
     print(json.dumps({
         "ok": True,
         "bootstrap": True,
         "provider_login": True,
         "admin_login": True,
         "user_validation": True,
+        "offer_comparison": True,
+        "request_chat": True,
+        "arrival_tracking": True,
+        "waitlist": True,
     }, ensure_ascii=False, indent=2))
 
 

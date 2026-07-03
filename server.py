@@ -66,6 +66,14 @@ ROLE_PERMISSIONS = {
 
 IMAGE_MIMES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 DOCUMENT_MIMES = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+CHAT_MIMES = {
+    **IMAGE_MIMES,
+    "audio/webm": "webm",
+    "audio/mp4": "m4a",
+    "audio/mpeg": "mp3",
+    "audio/ogg": "ogg",
+}
+VIDEO_MIMES = {"video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov"}
 
 
 def db():
@@ -375,6 +383,7 @@ def init_db():
               subscription_start TEXT DEFAULT '', provider_type TEXT DEFAULT 'individual', company_name TEXT DEFAULT '', company_id TEXT DEFAULT '',
               commercial_no TEXT DEFAULT '', verification_expiry TEXT DEFAULT '', commercial_expiry TEXT DEFAULT '', license_expiry TEXT DEFAULT '',
               latitude REAL, longitude REAL, location_updated_at TEXT DEFAULT '',
+              before_after TEXT DEFAULT '[]', intro_video_url TEXT DEFAULT '',
               stats TEXT NOT NULL DEFAULT '{"views":0,"whatsapp":0,"calls":0}', created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS provider_requests(
@@ -438,6 +447,8 @@ def init_db():
               location_text TEXT DEFAULT '', note TEXT DEFAULT '', images TEXT DEFAULT '[]',
               status TEXT NOT NULL DEFAULT 'matching', accepted_provider_id TEXT DEFAULT '',
               matching_provider_ids TEXT DEFAULT '[]', declined_provider_ids TEXT DEFAULT '[]',
+              offers TEXT DEFAULT '[]', messages TEXT DEFAULT '[]', arrival TEXT DEFAULT '{}',
+              waitlisted INTEGER NOT NULL DEFAULT 0,
               offers_open INTEGER NOT NULL DEFAULT 1, created_at TEXT DEFAULT CURRENT_TIMESTAMP,
               updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
@@ -496,6 +507,12 @@ def init_db():
         ensure_column(con, "providers", "latitude", "REAL")
         ensure_column(con, "providers", "longitude", "REAL")
         ensure_column(con, "providers", "location_updated_at", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "before_after", "TEXT DEFAULT '[]'")
+        ensure_column(con, "providers", "intro_video_url", "TEXT DEFAULT ''")
+        ensure_column(con, "customer_requests", "offers", "TEXT DEFAULT '[]'")
+        ensure_column(con, "customer_requests", "messages", "TEXT DEFAULT '[]'")
+        ensure_column(con, "customer_requests", "arrival", "TEXT DEFAULT '{}'")
+        ensure_column(con, "customer_requests", "waitlisted", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(con, "leads", "service_value", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "service_name", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "gov", "TEXT DEFAULT ''")
@@ -603,7 +620,10 @@ def init_db():
 
 
 def image_url(path):
-    return f"/{path.replace(os.sep, '/')}" if path else ""
+    value = str(path or "")
+    if not value or value.startswith(("data:", "http://", "https://", "/")):
+        return value
+    return f"/{value.replace(os.sep, '/')}"
 
 
 def urls(paths):
@@ -618,6 +638,17 @@ def row_provider(r, private=False):
     d["workImages"] = jload(d.pop("work_images", "[]"), [])
     d["workImageUrls"] = urls(d["workImages"])
     d["documents"] = jload(d.pop("documents", "[]"), [])
+    before_after = jload(d.pop("before_after", "[]"), [])
+    d["beforeAfter"] = [
+        {
+            **item,
+            "before": image_url(item.get("before", "")),
+            "after": image_url(item.get("after", "")),
+        }
+        for item in before_after
+        if isinstance(item, dict)
+    ]
+    d["introVideoUrl"] = image_url(d.pop("intro_video_url", ""))
     for k in ("active", "verified", "featured"):
         d[k] = bool(d[k])
     d["packageId"] = d.pop("package_id", "")
@@ -821,6 +852,19 @@ def row_customer_request(r):
     d["acceptedProviderId"] = d.pop("accepted_provider_id", "")
     d["matchingProviderIds"] = jload(d.pop("matching_provider_ids", "[]"), [])
     d["declinedProviderIds"] = jload(d.pop("declined_provider_ids", "[]"), [])
+    d["offers"] = jload(d.pop("offers", "[]"), [])
+    messages = jload(d.pop("messages", "[]"), [])
+    d["messages"] = [
+        {
+            **message,
+            "image": image_url(message.get("image", "")),
+            "audio": image_url(message.get("audio", "")),
+        }
+        for message in messages
+        if isinstance(message, dict)
+    ]
+    d["arrival"] = jload(d.pop("arrival", "{}"), {})
+    d["waitlisted"] = bool(d.pop("waitlisted", 0))
     d["offersOpen"] = bool(d.pop("offers_open", 0))
     d["createdAt"] = d.pop("created_at", "")
     d["updatedAt"] = d.pop("updated_at", "")
@@ -1374,6 +1418,48 @@ def upsert_provider(con, data):
             f"doc{int(time.time())}-", max(0, 6 - len(documents)),
         )
         documents = list(dict.fromkeys([*documents, *new_documents]))[:6]
+    before_after = data.get("beforeAfter")
+    if before_after is None:
+        before_after = existing_provider.get("beforeAfter", [])
+    before_after = [
+        {
+            **item,
+            "before": str(item.get("before", "")).lstrip("/")
+            if str(item.get("before", "")).startswith("/uploads/")
+            else item.get("before", ""),
+            "after": str(item.get("after", "")).lstrip("/")
+            if str(item.get("after", "")).startswith("/uploads/")
+            else item.get("after", ""),
+        }
+        for item in before_after
+        if isinstance(item, dict) and item.get("before") and item.get("after")
+    ][:8]
+    pair_data = data.get("beforeAfterData") or {}
+    if pair_data.get("before") and pair_data.get("after"):
+        pair_id = slug("compare")
+        pair_paths = save_many_images(
+            p["id"], [pair_data["before"], pair_data["after"]], pair_id, 2
+        )
+        if len(pair_paths) == 2:
+            before_after.append(
+                {
+                    "id": pair_id,
+                    "before": pair_paths[0],
+                    "after": pair_paths[1],
+                    "caption": str(pair_data.get("caption", "") or "")[:120],
+                    "createdAt": datetime.now(UTC).isoformat(),
+                }
+            )
+            before_after = before_after[-8:]
+    intro_video_url = data.get(
+        "introVideoUrl", existing_provider.get("introVideoUrl", "")
+    )
+    if data.get("introVideoData"):
+        intro_video_url = save_upload_data(
+            p["id"], data["introVideoData"], "intro", VIDEO_MIMES, 12_000_000
+        )
+    if isinstance(intro_video_url, str) and intro_video_url.startswith("/uploads/"):
+        intro_video_url = intro_video_url.lstrip("/")
     location = data.get("location") or existing_provider.get("location") or {}
     con.execute(
         """INSERT INTO providers(id,name,phone,gov,wilayah,areas,bio,hours,status,active,verified,featured,
@@ -1417,10 +1503,16 @@ def upsert_provider(con, data):
             jdump(p.get("stats", existing_provider.get("stats", {"views": 0, "whatsapp": 0, "calls": 0}))),
         ),
     )
+    con.execute(
+        "UPDATE providers SET before_after=?,intro_video_url=? WHERE id=?",
+        (jdump(before_after), intro_video_url, p["id"]),
+    )
     p["imagePath"] = image_path
     p["cardImage"] = card_image
     p["workImages"] = work_images
     p["documents"] = documents
+    p["beforeAfter"] = before_after
+    p["introVideoUrl"] = image_url(intro_video_url)
     recompute_provider_quality(con, p["id"])
     return p
 
@@ -1806,6 +1898,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.user_post(path, data)
         if path == "/api/requests/action":
             return self.request_action(data)
+        if path == "/api/request/collaboration":
+            return self.request_collaboration(data)
         if path == "/api/notifications/action":
             return self.notification_action(data)
         if path == "/api/recovery/request":
@@ -2131,6 +2225,205 @@ class Handler(SimpleHTTPRequestHandler):
                     )
             return self.send_json({"ok": True, "status": action})
 
+    def request_collaboration(self, data):
+        session = self.session()
+        if not session:
+            return self.send_json({"error": "auth_required"}, 401)
+        request_id = str(data.get("id", "") or "")
+        action = str(data.get("action", "") or "")
+        if not request_id or action not in (
+            "offer", "choose_offer", "message", "arrival", "waitlist"
+        ):
+            return self.send_json({"error": "invalid_request_action"}, 400)
+        with db() as con:
+            row = con.execute(
+                "SELECT * FROM customer_requests WHERE id=?", (request_id,)
+            ).fetchone()
+            if not row:
+                return self.send_json({"error": "request_not_found"}, 404)
+            item = row_customer_request(row)
+            provider_id = session.get("providerId", "")
+            user_id = session.get("userId", "")
+            is_user = bool(user_id and user_id == item["userId"])
+            is_provider = bool(
+                provider_id
+                and (
+                    provider_id in item["matchingProviderIds"]
+                    or provider_id == item["acceptedProviderId"]
+                )
+            )
+
+            if action == "offer":
+                if not is_provider or not item["offersOpen"] or item["acceptedProviderId"]:
+                    return self.send_json({"error": "offer_not_allowed"}, 403)
+                try:
+                    price = max(0, float(data.get("price", 0) or 0))
+                except (TypeError, ValueError):
+                    return self.send_json({"error": "invalid_offer_price"}, 400)
+                duration = str(data.get("duration", "") or "").strip()[:100]
+                if not duration:
+                    return self.send_json({"error": "offer_duration_required"}, 400)
+                offers = list(item.get("offers") or [])
+                existing = next(
+                    (offer for offer in offers if offer.get("providerId") == provider_id),
+                    None,
+                )
+                offer = {
+                    "id": existing.get("id") if existing else slug("offer"),
+                    "providerId": provider_id,
+                    "price": price,
+                    "duration": duration,
+                    "note": str(data.get("note", "") or "").strip()[:500],
+                    "status": "pending",
+                    "createdAt": existing.get("createdAt") if existing else datetime.now(UTC).isoformat(),
+                    "updatedAt": datetime.now(UTC).isoformat(),
+                }
+                if existing:
+                    offers = [offer if row_offer is existing else row_offer for row_offer in offers]
+                else:
+                    offers.append(offer)
+                con.execute(
+                    "UPDATE customer_requests SET offers=?,status='viewed',updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (jdump(offers[-12:]), request_id),
+                )
+                create_notification(
+                    con, "user", item["userId"], "وصل عرض جديد لطلبك",
+                    f"{session.get('name', 'مزود')} أرسل سعراً ومدة لخدمة {item['serviceName'] or item['serviceValue']}.",
+                    type_="request", related_id=request_id, priority="high",
+                    action_text="مقارنة العروض", action_route=f"user:request:{request_id}",
+                )
+
+            elif action == "choose_offer":
+                if not is_user or item["acceptedProviderId"]:
+                    return self.send_json({"error": "offer_selection_not_allowed"}, 403)
+                offer_id = str(data.get("offerId", "") or "")
+                offers = list(item.get("offers") or [])
+                selected = next((offer for offer in offers if offer.get("id") == offer_id), None)
+                if not selected:
+                    return self.send_json({"error": "offer_not_found"}, 404)
+                selected_provider = selected.get("providerId", "")
+                for offer in offers:
+                    offer["status"] = "accepted" if offer.get("id") == offer_id else "declined"
+                con.execute(
+                    """UPDATE customer_requests SET offers=?,accepted_provider_id=?,
+                    status='accepted',offers_open=0,waitlisted=0,updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                    (jdump(offers), selected_provider, request_id),
+                )
+                create_notification(
+                    con, "provider", selected_provider, "اختار العميل عرضك",
+                    f"تم اختيار عرضك لخدمة {item['serviceName'] or item['serviceValue']}.",
+                    type_="request", related_id=request_id, priority="high",
+                    action_text="فتح الطلب", action_route=f"provider:request:{request_id}",
+                )
+                create_notification(
+                    con, "admin", "", "تم اختيار عرض",
+                    f"{request_id} - المزود {selected_provider}",
+                    type_="request", related_id=request_id,
+                    action_text="فتح الطلب", action_route=f"admin:request:{request_id}",
+                )
+
+            elif action == "message":
+                if not (is_user or (is_provider and provider_id == item["acceptedProviderId"])):
+                    return self.send_json({"error": "chat_not_allowed"}, 403)
+                text = str(data.get("text", "") or "").strip()[:1000]
+                image_path = ""
+                audio_path = ""
+                message_id = slug("msg")
+                try:
+                    if data.get("imageData"):
+                        image_path = save_upload_data(
+                            request_id, data["imageData"], f"{message_id}-image",
+                            IMAGE_MIMES, 2_500_000,
+                        )
+                    if data.get("audioData"):
+                        audio_path = save_upload_data(
+                            request_id, data["audioData"], f"{message_id}-audio",
+                            CHAT_MIMES, 4_000_000,
+                        )
+                except ValueError as err:
+                    return self.send_json({"error": str(err)}, 400)
+                if not text and not image_path and not audio_path:
+                    return self.send_json({"error": "empty_message"}, 400)
+                messages = list(item.get("messages") or [])
+                message = {
+                    "id": message_id,
+                    "sender": "user" if is_user else "provider",
+                    "senderId": user_id if is_user else provider_id,
+                    "text": text,
+                    "image": image_path,
+                    "audio": audio_path,
+                    "createdAt": datetime.now(UTC).isoformat(),
+                }
+                messages.append(message)
+                con.execute(
+                    "UPDATE customer_requests SET messages=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (jdump(messages[-120:]), request_id),
+                )
+                target_kind = "provider" if is_user else "user"
+                target_id = item["acceptedProviderId"] if is_user else item["userId"]
+                create_notification(
+                    con, target_kind, target_id, "رسالة جديدة",
+                    text[:120] or ("صورة جديدة" if image_path else "رسالة صوتية جديدة"),
+                    type_="request", related_id=request_id, priority="normal",
+                    action_text="فتح المحادثة",
+                    action_route=f"{target_kind}:request:{request_id}",
+                )
+
+            elif action == "arrival":
+                if not is_provider or provider_id != item["acceptedProviderId"]:
+                    return self.send_json({"error": "arrival_not_allowed"}, 403)
+                status = str(data.get("status", "onTheWay") or "onTheWay")
+                if status not in ("onTheWay", "near", "arrived"):
+                    return self.send_json({"error": "invalid_arrival_status"}, 400)
+                location = data.get("location") or {}
+                arrival = {
+                    **(item.get("arrival") or {}),
+                    "status": status,
+                    "providerLocation": {
+                        "lat": location.get("lat"),
+                        "lng": location.get("lng"),
+                        "accuracy": location.get("accuracy", 0),
+                        "updatedAt": location.get("updatedAt", datetime.now(UTC).isoformat()),
+                    },
+                    "etaMinutes": max(0, int(data.get("etaMinutes", 0) or 0)),
+                    "startedAt": (item.get("arrival") or {}).get("startedAt")
+                    or datetime.now(UTC).isoformat(),
+                    "updatedAt": datetime.now(UTC).isoformat(),
+                }
+                con.execute(
+                    "UPDATE customer_requests SET arrival=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (jdump(arrival), request_id),
+                )
+                if status in ("onTheWay", "arrived"):
+                    create_notification(
+                        con, "user", item["userId"],
+                        "المزود في الطريق" if status == "onTheWay" else "وصل المزود",
+                        f"{session.get('name', 'المزود')} "
+                        + (
+                            f"سيصل خلال نحو {arrival['etaMinutes']} دقيقة."
+                            if status == "onTheWay"
+                            else "وصل إلى موقع تنفيذ الخدمة."
+                        ),
+                        type_="request", related_id=request_id, priority="high",
+                        action_text="متابعة الوصول", action_route=f"user:request:{request_id}",
+                    )
+
+            elif action == "waitlist":
+                if not is_user:
+                    return self.send_json({"error": "waitlist_not_allowed"}, 403)
+                enabled = bool(data.get("enabled", True))
+                con.execute(
+                    "UPDATE customer_requests SET waitlisted=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (int(enabled), request_id),
+                )
+
+            updated = con.execute(
+                "SELECT * FROM customer_requests WHERE id=?", (request_id,)
+            ).fetchone()
+            return self.send_json(
+                {"ok": True, "request": row_customer_request(updated)}
+            )
+
     def notification_action(self, data):
         session = self.session()
         if not session:
@@ -2307,6 +2600,10 @@ class Handler(SimpleHTTPRequestHandler):
                     "status": data.get("status", provider["status"]),
                     "services": data.get("services", provider["services"]),
                     "cardImage": data.get("cardImage", provider.get("cardImage", "")),
+                    "beforeAfter": data.get("beforeAfter", provider.get("beforeAfter", [])),
+                    "beforeAfterData": data.get("beforeAfterData", {}),
+                    "introVideoUrl": data.get("introVideoUrl", provider.get("introVideoUrl", "")),
+                    "introVideoData": data.get("introVideoData", ""),
                     "active": provider["active"],
                     "verified": provider["verified"],
                     "featured": provider["featured"],
@@ -2317,9 +2614,38 @@ class Handler(SimpleHTTPRequestHandler):
                     provider["workImagesData"] = data["workImagesData"]
                 if data.get("documentsData"):
                     provider["documentsData"] = data["documentsData"]
-                upsert_provider(con, provider)
+                saved_provider = upsert_provider(con, provider)
+                if saved_provider.get("status") == "available":
+                    waiting_rows = con.execute(
+                        "SELECT * FROM customer_requests WHERE waitlisted=1 AND status='unavailable'"
+                    ).fetchall()
+                    for waiting_row in waiting_rows:
+                        waiting_request = row_customer_request(waiting_row)
+                        if not request_matches_provider(waiting_request, saved_provider):
+                            continue
+                        matches = list(waiting_request.get("matchingProviderIds") or [])
+                        if saved_provider["id"] not in matches:
+                            matches.append(saved_provider["id"])
+                        con.execute(
+                            """UPDATE customer_requests SET matching_provider_ids=?,status='matching',
+                            offers_open=1,waitlisted=0,updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                            (jdump(matches), waiting_request["id"]),
+                        )
+                        create_notification(
+                            con, "user", waiting_request["userId"], "توفر مزود لخدمتك",
+                            f"أصبح هناك مزود مناسب لطلب {waiting_request['serviceName'] or waiting_request['serviceValue']}.",
+                            type_="request", related_id=waiting_request["id"], priority="high",
+                            action_text="فتح الطلب", action_route=f"user:request:{waiting_request['id']}",
+                        )
+                        create_notification(
+                            con, "provider", saved_provider["id"], "طلب من قائمة الانتظار",
+                            f"{waiting_request['serviceName'] or waiting_request['serviceValue']} - {waiting_request['wilayah'] or waiting_request['gov']}",
+                            type_="request", related_id=waiting_request["id"], priority="high",
+                            action_text="إرسال عرض", action_route=f"provider:request:{waiting_request['id']}",
+                        )
                 log_audit(con, session, "provider.profile.updated", provider["id"], provider["name"])
-                return self.send_json({"ok": True})
+                updated = con.execute("SELECT * FROM providers WHERE id=?", (provider["id"],)).fetchone()
+                return self.send_json({"ok": True, "provider": row_provider(updated, private=True)})
             if path == "/api/provider/image":
                 image_path = save_data_url(provider["id"], data.get("imageData", ""))
                 con.execute("UPDATE providers SET image_path=? WHERE id=?", (image_path, provider["id"]))

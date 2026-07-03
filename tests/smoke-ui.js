@@ -17,13 +17,19 @@ async function capture(page, name) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, executablePath: CHROME_PATH });
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: CHROME_PATH,
+    args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
+  });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
     isMobile: true,
     hasTouch: true,
     locale: 'ar-OM',
+    permissions: ['geolocation', 'microphone'],
+    geolocation: { latitude: 23.61, longitude: 58.24 },
   });
   const page = await context.newPage();
   const errors = [];
@@ -91,6 +97,80 @@ async function capture(page, name) {
   assert(await page.locator('.modal-title').filter({ hasText: /عرض السعر|price and duration/i }).count(), 'Quote template sheet did not open.');
   await page.locator('[data-action="closeModal"]').click();
 
+  await page.locator('.side-nav [data-action="providerTab"][data-tab="leads"]').click();
+  await page.locator('[data-action="providerAcceptRequest"]').first().click();
+  await page.locator('#offerPrice').fill('12');
+  await page.locator('#offerDuration').fill('خلال ساعتين');
+  await page.locator('#offerNote').fill('يشمل المعاينة والتنفيذ');
+  await page.locator('[data-action="submitProviderOffer"]').click();
+  await page.waitForSelector('#modalRoot .modal-backdrop', { state: 'detached' });
+  await page.locator('[data-action="providerUserMode"]').click();
+  await page.locator('.bottom-nav [data-action="nav"][data-view="myAccount"]').click();
+  assert(await page.locator('.request-offer-summary').count(), 'Offer comparison summary is missing.');
+  await page.waitForTimeout(600);
+  if (await page.locator('#modalRoot .modal-backdrop.show').count()) {
+    assert(await page.locator('#modalRoot .notification-disclosure').count(), 'Unexpected modal blocked offer comparison.');
+    await page.locator('#modalRoot [data-action="closeModal"]').first().click();
+  }
+  await page.locator('[data-action="compareRequestOffers"]').first().click();
+  assert(await page.locator('.offer-card').count(), 'Offer comparison card is missing.');
+  await capture(page, '04-offer-comparison');
+  await page.locator('[data-action="acceptRequestOffer"]').first().click();
+
+  await page.locator('[data-action="openRequestChat"]').first().click();
+  await page.locator('#chatText').fill('تم تأكيد الموعد');
+  await page.locator('[data-action="sendChatMessage"]').click();
+  await page.waitForSelector('.chat-message.mine');
+  await page.locator('#chatImage').setInputFiles(path.join(__dirname, '..', 'app-icon-192.png'));
+  await page.locator('#chatText').fill('صورة توضيحية');
+  await page.locator('[data-action="sendChatMessage"]').click();
+  await page.waitForSelector('.chat-message.mine img');
+  await page.locator('[data-action="toggleChatRecording"]').click();
+  await page.waitForTimeout(900);
+  await page.locator('[data-action="toggleChatRecording"]').click();
+  await page.waitForSelector('.voice-ready:not(:empty)');
+  await page.locator('[data-action="sendChatMessage"]').click();
+  await page.waitForSelector('.chat-message.mine audio');
+  await capture(page, '05-request-chat');
+  await page.locator('[data-action="closeModal"]').click();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('[data-action="addRequestCalendar"]').first().click();
+  const calendarDownload = await downloadPromise;
+  assert((await calendarDownload.suggestedFilename()).endsWith('.ics'), 'Calendar export is not an ICS file.');
+
+  await page.locator('.account-menu [data-action="nav"][data-view="provider"]').click();
+  await page.locator('.side-nav [data-action="providerTab"][data-tab="leads"]').click();
+  await page.locator('[data-action="openArrivalTracking"]').first().click();
+  await page.locator('[data-action="updateProviderArrival"][data-status="onTheWay"]').click();
+  await page.waitForSelector('.arrival-card');
+  await capture(page, '06-arrival-tracking');
+  await page.locator('[data-action="closeModal"]').click();
+
+  await page.locator('.side-nav [data-action="providerTab"][data-tab="profile"]').click();
+  await page.locator('#ppBeforeImage').setInputFiles(path.join(__dirname, '..', 'app-icon-192.png'));
+  await page.locator('#ppAfterImage').setInputFiles(path.join(__dirname, '..', 'app-icon-512.png'));
+  await page.locator('#ppBeforeAfterCaption').fill('نتيجة اختبار قبل وبعد');
+  await page.locator('[data-action="saveBeforeAfterPair"]').click();
+  await page.waitForSelector('.rich-media-editor .list-item');
+  await page.locator('#ppIntroVideoUrl').fill('https://example.com/khadamati-intro.mp4');
+  await page.locator('[data-action="saveProviderIntroVideo"]').click();
+  await page.waitForSelector('.provider-media-preview');
+  await capture(page, '07-provider-media');
+
+  await page.locator('[data-action="providerUserMode"]').click();
+  await page.locator('.bottom-nav [data-action="nav"][data-view="search"]').click();
+  await page.waitForTimeout(600);
+  if (await page.locator('#modalRoot .modal-backdrop.show').count()) {
+    assert(await page.locator('#modalRoot .notification-disclosure').count(), 'Unexpected modal blocked public provider profile.');
+    await page.locator('#modalRoot [data-action="closeModal"]').first().click();
+  }
+  await page.locator('[data-action="providerDetails"][data-id="p1"]').first().click();
+  assert(await page.locator('.provider-intro-video').count(), 'Provider introduction video is missing from the public profile.');
+  assert(await page.locator('.before-after-card').count(), 'Before/after gallery is missing from the public profile.');
+  await page.locator('[data-action="closeModal"]').click();
+  await page.locator('.bottom-nav [data-action="nav"][data-view="myAccount"]').click();
+  await page.locator('.account-menu [data-action="nav"][data-view="provider"]').click();
   await page.locator('[data-action="providerLogout"]').click();
   for (let i = 0; i < 6; i++) await page.locator('[data-action="brandHome"]').first().click();
   await page.waitForSelector('#adminCode');
