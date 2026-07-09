@@ -1849,6 +1849,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "wilayah": data.get("wilayah", ""),
                 "location": data.get("location"),
                 "service": data.get("service", ""),
+                "services": [],
                 "priceFrom": data.get("priceFrom", 0),
                 "note": data.get("note", ""),
                 "hours": data.get("hours", ""),
@@ -1857,6 +1858,35 @@ class Handler(SimpleHTTPRequestHandler):
                 "documents": [],
                 "pinHash": hash_pin(pin) if len(pin) >= 4 else "",
             }
+            raw_services = data.get("services") if isinstance(data.get("services"), list) else []
+            service_limit = 5 if item["providerType"] == "company" else 3
+            seen_services = set()
+            for svc in raw_services:
+                if not isinstance(svc, dict):
+                    continue
+                cat_id = str(svc.get("catId", "")).strip()
+                service_id = str(svc.get("serviceId", "")).strip()
+                if not cat_id or not service_id or (cat_id, service_id) in seen_services:
+                    continue
+                seen_services.add((cat_id, service_id))
+                item["services"].append(
+                    {
+                        "id": svc.get("id") or slug("ps"),
+                        "catId": cat_id,
+                        "serviceId": service_id,
+                        "priceFrom": float(svc.get("priceFrom") or item["priceFrom"] or 0),
+                        "active": bool(svc.get("active", True)),
+                        "areas": svc.get("areas") or [item["wilayah"]],
+                    }
+                )
+                if len(item["services"]) >= service_limit:
+                    break
+            if not item["services"] and "|" in item["service"]:
+                cat_id, service_id = item["service"].split("|", 1)
+                item["services"] = [{"id": slug("ps"), "catId": cat_id, "serviceId": service_id, "priceFrom": float(item["priceFrom"] or 0), "active": True, "areas": [item["wilayah"]]}]
+            if item["services"]:
+                first = item["services"][0]
+                item["service"] = f"{first['catId']}|{first['serviceId']}"
             if not item["name"] or not item["phone"] or not item["pinHash"]:
                 return self.send_json({"error": "name_phone_pin_required"}, 400)
             if item["providerType"] == "company" and not item["companyName"]:
@@ -1866,7 +1896,7 @@ class Handler(SimpleHTTPRequestHandler):
             note_words = len(str(item["note"]).split())
             if note_words < 3 or note_words > 20:
                 return self.send_json({"error": "description_word_limit"}, 400)
-            if not item["service"] or "|" not in item["service"]:
+            if not item["services"]:
                 return self.send_json({"error": "service_required"}, 400)
             if not item["hours"]:
                 return self.send_json({"error": "availability_required"}, 400)
@@ -1884,7 +1914,7 @@ class Handler(SimpleHTTPRequestHandler):
             with db() as con:
                 con.execute("INSERT INTO provider_requests(id,payload) VALUES(?,?)", (item["id"], jdump(item)))
                 settings = jload(con.execute("SELECT value FROM settings WHERE key='platform'").fetchone()["value"], {})
-            send_whatsapp(settings.get("adminWhatsapp"), f"طلب مزود جديد في خدماتي: {item['name']} - {item['phone']} - {item['service']}")
+            send_whatsapp(settings.get("adminWhatsapp"), f"طلب مزود جديد في خدماتي: {item['name']} - {item['phone']} - {len(item['services'])} خدمات")
             safe_item = item.copy()
             safe_item.pop("pinHash", None)
             return self.send_json({"ok": True, "request": safe_item}, 201)
@@ -2801,8 +2831,22 @@ class Handler(SimpleHTTPRequestHandler):
                         "adminNote": "تم قبوله من الطلبات" + (f" | سجل: {payload.get('commercialNo', '')} | فريق: {payload.get('companySize', '')}" if payload.get("providerType") == "company" else f" | مهنة: {payload.get('businessRole', '')}"),
                         "pinHash": payload.get("pinHash") or hash_secret(default_provider_pin(payload.get("phone", ""))),
                     }
+                    services = payload.get("services") if isinstance(payload.get("services"), list) else []
+                    service_limit = 5 if provider["providerType"] == "company" else 3
+                    provider["services"] = [
+                        {
+                            "id": svc.get("id") or slug("ps"),
+                            "catId": svc.get("catId", ""),
+                            "serviceId": svc.get("serviceId", ""),
+                            "priceFrom": float(svc.get("priceFrom") or payload.get("priceFrom") or 0),
+                            "active": bool(svc.get("active", True)),
+                            "areas": svc.get("areas") or [payload.get("wilayah", "")],
+                        }
+                        for svc in services[:service_limit]
+                        if isinstance(svc, dict) and svc.get("catId") and svc.get("serviceId")
+                    ]
                     service = payload.get("service", "")
-                    if "|" in service:
+                    if not provider["services"] and "|" in service:
                         cat_id, service_id = service.split("|", 1)
                         provider["services"] = [{"id": slug("ps"), "catId": cat_id, "serviceId": service_id, "priceFrom": float(payload.get("priceFrom") or 0), "active": True, "areas": [payload.get("wilayah", "")]}]
                     upsert_provider(con, provider)
