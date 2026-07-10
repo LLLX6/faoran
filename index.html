@@ -302,6 +302,8 @@ body.onboarding-open{overflow:hidden;overscroll-behavior:none}
 (() => {
 'use strict';
 const STORAGE_KEY = 'KHADAMATI_MARKET_OS_V20';
+const APP_VERSION = 29;
+const APP_BUILD = 'khadamati-v29-2026-07-10';
 const LEGACY_STORAGE_KEYS = ['FORAN_MARKET_OS_V14'];
 const ONBOARDING_STORAGE_KEY = 'KHADAMATI_ONBOARDING_V1';
 const ADMIN_CODE = '0000';
@@ -601,7 +603,7 @@ const demoAdSlides = () => [
  {id:'demo-ad-assistant',demo:true,active:true,advertiser:'خدماتي',amount:0,title:'مساعدك الشخصي للخدمة المناسبة',text:'اكتب المشكلة وسيقترح التطبيق التخصص الأقرب.',image:demoAdImage('مساعدك الشخصي للخدمة المناسبة','اكتب المشكلة وسيقترح التطبيق التخصص الأقرب','#102a43','#0d8b7f','#f4bd37'),createdAt:nowISO()}
 ];
 const seedState = () => ({
-version:28,lang:'ar',theme:'light',view:'entry',lastView:'home',entrySeen:false,splashSeen:false,userUiMode:'simple',filtersOpen:false,user:{name:'',phone:'',gov:'مسقط',wilayah:'السيب',avatar:'',location:null,accessPin:''},session:{mode:'none',userId:''},users:[],guestVisits:[],currentProviderId:null,providerLoginMemory:{phone:'',name:''},loginFailures:{},admin:false,adminTab:'overview',adminNavScroll:0,providerTab:'home',providerNavScroll:0,favorites:[],supportNotes:[],customerRequests:[],requestDraft:null,providerRegistrationDraft:null,activityEvents:[],recentSearches:[],notifications:[],assistantSearches:[],unavailableRequests:[],adSlides:demoAdSlides(),demoAdsSeeded:true,adArchive:[],adIndex:0,mapFilters:{service:'',gov:''},serviceAreas:GOVS.map(g=>({ar:g.ar,en:g.en,w:g.w.map(x=>[...x])})),
+version:APP_VERSION,lang:'ar',theme:'light',view:'entry',lastView:'home',entrySeen:false,splashSeen:false,userUiMode:'simple',filtersOpen:false,user:{name:'',phone:'',gov:'مسقط',wilayah:'السيب',avatar:'',location:null,accessPin:''},session:{mode:'none',userId:''},users:[],guestVisits:[],currentProviderId:null,providerLoginMemory:{phone:'',name:''},loginFailures:{},admin:false,adminTab:'overview',adminNavScroll:0,providerTab:'home',providerNavScroll:0,favorites:[],supportNotes:[],customerRequests:[],requestDraft:null,providerRegistrationDraft:null,activityEvents:[],recentSearches:[],notifications:[],assistantSearches:[],unavailableRequests:[],adSlides:demoAdSlides(),demoAdsSeeded:true,adArchive:[],adIndex:0,mapFilters:{service:'',gov:''},serviceAreas:GOVS.map(g=>({ar:g.ar,en:g.en,w:g.w.map(x=>[...x])})),
  categories:seedCategories(),providers:seedProviders(),providerRequests:[],reviews:[],complaints:[],subscriptions:[],payments:[],leads:[],auditLogs:[],reports:{},serverStats:{},
  platform:{...PLATFORM_DEFAULTS,nameAr:'خدماتي',nameEn:'Khadamati',adminWhatsapp:'96890000000',defaultGov:'مسقط',defaultLang:'ar',acceptProviders:true,subscriptionsEnabled:false,paymentGatewayEnabled:false,monthlyGoal:500},
  packages:seedPackages(),
@@ -769,7 +771,7 @@ function ensurePlatform(){
  if(!S.session.mode || !['none','registered','guest'].includes(S.session.mode) || (S.session.mode==='none'&&S.user?.phone)) S.session.mode=S.user?.phone?'registered':'none';
  S.providers=(S.providers||[]).map(p=>normalizeProvider({...p,services:p.services||[],areas:p.areas||[],stats:p.stats||{views:0,whatsapp:0,calls:0}}));
  S.providerRequests=(S.providerRequests||[]).map(p=>normalizeProvider({...p,services:p.services||[],areas:p.areas||[]}));
-S.version=28;
+S.version=APP_VERSION;
  return S.platform;
 }
 function sessionMode(){ return S.session?.mode||'none'; }
@@ -2465,7 +2467,22 @@ document.addEventListener('change', e=>{
 window.addEventListener('resize',()=>positionTopSearchDropdown(document.querySelector('.global-search')),{passive:true});
 window.addEventListener('online',()=>{flushOfflineQueue().finally(render);});
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
- navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+ const refreshKey=`${APP_BUILD}:reloaded`;
+ const freshRequested=new URLSearchParams(location.search).has('fresh');
+ if(freshRequested&&window.caches) caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('khadamati-shell-')).map(k=>caches.delete(k)))).catch(()=>{});
+ let refreshing=false;
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{
+  if(refreshing)return;refreshing=true;
+  if(!sessionStorage.getItem(refreshKey)){sessionStorage.setItem(refreshKey,'1');location.reload();}
+ });
+ navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).then(reg=>{
+  reg.update().catch(()=>{});
+  if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
+  reg.addEventListener('updatefound',()=>{
+   const worker=reg.installing;if(!worker)return;
+   worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)worker.postMessage({type:'SKIP_WAITING'});});
+  });
+ }).catch(()=>{});
  navigator.serviceWorker.addEventListener('message',event=>{
   if(event.data?.type==='KHADAMATI_NOTIFICATION'){Adapter.loadRemote().finally(()=>{render();notificationsSheet();});}
  });
