@@ -5,6 +5,9 @@ const path = require('path');
 const BASE_URL = process.env.KHADAMATI_TEST_URL || 'http://127.0.0.1:8080/';
 const CHROME_PATH = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const SCREENSHOT_DIR = process.env.KHADAMATI_SCREENSHOT_DIR || '';
+const VIEWPORT_WIDTH = Number(process.env.KHADAMATI_VIEWPORT_WIDTH || 390);
+const VIEWPORT_HEIGHT = Number(process.env.KHADAMATI_VIEWPORT_HEIGHT || 844);
+const IS_MOBILE = VIEWPORT_WIDTH <= 760;
 
 function assert(value, message) {
   if (!value) throw new Error(message);
@@ -16,6 +19,18 @@ async function capture(page, name) {
   await page.screenshot({ path: path.join(SCREENSHOT_DIR, `${name}.png`), fullPage: true });
 }
 
+async function clickUserNav(page, view) {
+  const item = page.locator(`.bottom-nav [data-action="nav"][data-view="${view}"]`).first();
+  if (await item.isVisible()) await item.click();
+  else await item.evaluate(element => element.click());
+}
+
+async function clickFirstAction(page, action) {
+  const item = page.locator(`[data-action="${action}"]`).first();
+  if (await item.isVisible()) await item.click();
+  else await item.evaluate(element => element.click());
+}
+
 (async () => {
   const browser = await chromium.launch({
     headless: true,
@@ -23,12 +38,12 @@ async function capture(page, name) {
     args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
   });
   const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
+    viewport: { width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT },
     deviceScaleFactor: 2,
-    isMobile: true,
-    hasTouch: true,
+    isMobile: IS_MOBILE,
+    hasTouch: IS_MOBILE,
     locale: 'ar-OM',
-    permissions: ['geolocation', 'microphone'],
+    permissions: ['geolocation', 'microphone', 'notifications'],
     geolocation: { latitude: 23.61, longitude: 58.24 },
   });
   const page = await context.newPage();
@@ -46,6 +61,7 @@ async function capture(page, name) {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-action="openUserLogin"]');
+  await capture(page, '00-entry');
 
   await page.locator('[data-action="openUserLogin"]').click();
   await page.locator('#customerLoginPhone').fill('95550001');
@@ -57,11 +73,22 @@ async function capture(page, name) {
   assert((await page.locator('.clean-grid .category-tile').count()) <= 6, 'Home must show no more than six categories.');
   assert(await page.locator('main.view > .home-ad.ad-slider').count(), 'Advertisement slider must be the first home block.');
   assert((await page.locator('.popular-rail').count()) === 0, 'Popular services rail should be removed from home.');
-  assert(await page.locator('.do-it-visual').count(), 'Handle-it visual guide is missing.');
-  assert(await page.locator('.context-tip').count(), 'Contextual assistant tip is missing.');
+  assert(await page.locator('.direct-request-card').count(), 'Direct request card is missing.');
+  assert((await page.locator('.global-search').count()) === 0, 'Duplicated global search should be removed.');
+  assert((await page.locator('main[data-view="home"] .provider-listing').count()) === 0, 'Home should not contain provider recommendation cards.');
   await capture(page, '01-user-home');
 
-  await page.locator('[data-action="openRequestBoard"]').first().click();
+  await clickUserNav(page, 'search');
+  assert(await page.locator('.search-map-banner').count(), 'Search from map banner is missing.');
+  assert((await page.locator('.search-filter-panel').count()) === 0, 'Advanced filters should start collapsed.');
+  await page.locator('[data-action="searchCategory"]').first().click();
+  assert(await page.locator('.search-service-tabs').count(), 'Service stage did not open after choosing a category.');
+  const searchColumns = await page.locator('.search-results-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length);
+  assert(searchColumns === (IS_MOBILE ? 2 : 3), 'Search results grid does not match the active viewport.');
+  await capture(page, '01b-progressive-search');
+  await clickUserNav(page, 'home');
+
+  await clickFirstAction(page, 'openRequestBoard');
   assert(await page.locator('.request-board-sheet').count(), 'Request board did not open.');
   await page.locator('[data-action="closeModal"]').click();
   await page.locator('[data-action="quickRequestForm"]').first().click();
@@ -69,21 +96,21 @@ async function capture(page, name) {
   await page.locator('#qrName').fill('مستخدم الاختبار الآلي');
   await page.locator('#qrPhone').fill('95550001');
   await page.locator('#qrService').selectOption({ index: 0 });
-  await page.locator('[data-action="requestWizardNext"][data-step="2"]').click();
+  await page.locator('[data-action="requestWizardNext"][data-step="2"]:visible').click();
   await page.locator('#qrNote').fill('أحتاج تنفيذ هذه الخدمة في المنزل خلال هذا الأسبوع');
-  await page.locator('[data-action="requestWizardNext"][data-step="3"]').click();
+  await page.locator('[data-action="requestWizardNext"][data-step="3"]:visible').click();
   assert(await page.locator('.match-summary').count(), 'Request matching summary is missing.');
   await page.locator('[data-action="saveQuickRequest"]').click();
   await page.waitForSelector('.active-request-home');
-  await page.locator('[data-action="openRequestBoard"]').first().click();
+  await clickFirstAction(page, 'openRequestBoard');
   assert(await page.locator('.request-board-card').count(), 'New request is missing from the request board.');
   await page.locator('[data-action="closeModal"]').click();
-  await page.locator('.bottom-nav [data-action="nav"][data-view="myAccount"]').click();
+  await clickUserNav(page, 'myAccount');
   await page.locator('[data-action="openAppearance"]').click();
   await page.locator('[data-action="setDisplayScale"][data-value="large"]').click();
   assert(await page.locator('body').getAttribute('data-scale') === 'large', 'Large text mode was not applied.');
   await page.locator('[data-action="closeModal"]').click();
-  await page.locator('.bottom-nav [data-action="nav"][data-view="home"]').click();
+  await clickUserNav(page, 'home');
 
   await page.locator('[data-action="goBack"]').click();
   await page.locator('[data-action="enterProvider"]').click();
@@ -105,7 +132,7 @@ async function capture(page, name) {
   await page.locator('[data-action="closeModal"]').click();
 
   await page.locator('.side-nav [data-action="providerTab"][data-tab="leads"]').click();
-  await page.locator('[data-action="openRequestBoard"]').first().click();
+  await clickFirstAction(page, 'openRequestBoard');
   assert(await page.locator('.request-board-card').count(), 'Provider request board is empty.');
   assert(await page.locator('.request-board-card [data-action="providerAcceptRequest"]').count(), 'Matching provider cannot offer from the request board.');
   await page.locator('[data-action="closeModal"]').click();
@@ -116,7 +143,7 @@ async function capture(page, name) {
   await page.locator('[data-action="submitProviderOffer"]').click();
   await page.waitForSelector('#modalRoot .modal-backdrop', { state: 'detached' });
   await page.locator('[data-action="providerUserMode"]').click();
-  await page.locator('.bottom-nav [data-action="nav"][data-view="myAccount"]').click();
+  await clickUserNav(page, 'myAccount');
   assert(await page.locator('.request-offer-summary').count(), 'Offer comparison summary is missing.');
   await page.waitForTimeout(600);
   if (await page.locator('#modalRoot .modal-backdrop.show').count()) {
@@ -170,7 +197,7 @@ async function capture(page, name) {
   await capture(page, '07-provider-media');
 
   await page.locator('[data-action="providerUserMode"]').click();
-  await page.locator('.bottom-nav [data-action="nav"][data-view="search"]').click();
+  await clickUserNav(page, 'search');
   await page.waitForTimeout(600);
   if (await page.locator('#modalRoot .modal-backdrop.show').count()) {
     assert(await page.locator('#modalRoot .notification-disclosure').count(), 'Unexpected modal blocked public provider profile.');
@@ -180,7 +207,7 @@ async function capture(page, name) {
   assert(await page.locator('.provider-intro-video').count(), 'Provider introduction video is missing from the public profile.');
   assert(await page.locator('.before-after-card').count(), 'Before/after gallery is missing from the public profile.');
   await page.locator('[data-action="closeModal"]').click();
-  await page.locator('.bottom-nav [data-action="nav"][data-view="myAccount"]').click();
+  await clickUserNav(page, 'myAccount');
   await page.locator('.account-menu [data-action="nav"][data-view="provider"]').click();
   await page.locator('[data-action="providerLogout"]').click();
   for (let i = 0; i < 6; i++) await page.locator('[data-action="brandHome"]').first().click();
