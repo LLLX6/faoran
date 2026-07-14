@@ -82,7 +82,7 @@ async function clickFirstAction(page, action) {
   assert(await page.locator('.search-map-banner').count(), 'Search from map banner is missing.');
   assert((await page.locator('.search-filter-panel').count()) === 0, 'Advanced filters should start collapsed.');
   await page.locator('[data-action="searchCategory"]').first().click();
-  assert(await page.locator('.search-service-tabs').count(), 'Service stage did not open after choosing a category.');
+  assert(await page.locator('.service-choice-grid').count(), 'Service stage did not open after choosing a category.');
   const searchColumns = await page.locator('.search-results-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length);
   assert(searchColumns === (IS_MOBILE ? 2 : 3), 'Search results grid does not match the active viewport.');
   await capture(page, '01b-progressive-search');
@@ -93,17 +93,21 @@ async function clickFirstAction(page, action) {
   await page.locator('[data-action="closeModal"]').click();
   await page.locator('[data-action="quickRequestForm"]').first().click();
   await page.waitForSelector('.request-wizard');
-  await page.locator('#qrName').fill('مستخدم الاختبار الآلي');
-  await page.locator('#qrPhone').fill('95550001');
-  await page.locator('#qrService').selectOption({ index: 0 });
+  await capture(page, '01c-direct-service');
+  await page.locator('#qrCategory').selectOption({ index: 1 });
+  await page.waitForSelector('#qrService');
+  await page.locator('#qrService').selectOption({ index: 1 });
   await page.locator('[data-action="requestWizardNext"][data-step="2"]:visible').click();
-  await page.locator('#qrNote').fill('أحتاج تنفيذ هذه الخدمة في المنزل خلال هذا الأسبوع');
+  assert(await page.locator('.request-location-stage').count(), 'Location step is missing from direct request.');
+  await capture(page, '01d-direct-location');
   await page.locator('[data-action="requestWizardNext"][data-step="3"]:visible').click();
+  await page.locator('#qrNote').fill('أحتاج تنفيذ هذه الخدمة في المنزل خلال هذا الأسبوع');
+  await page.locator('[data-action="requestWizardNext"][data-step="4"]:visible').click();
   assert(await page.locator('.match-summary').count(), 'Request matching summary is missing.');
   await page.locator('[data-action="saveQuickRequest"]').click();
   await page.waitForSelector('.active-request-home');
   await clickFirstAction(page, 'openRequestBoard');
-  assert(await page.locator('.request-board-card').count(), 'New request is missing from the request board.');
+  assert(await page.locator('.request-opportunity').count(), 'New request is missing from the request board.');
   await page.locator('[data-action="closeModal"]').click();
   await clickUserNav(page, 'myAccount');
   await page.locator('[data-action="openAppearance"]').click();
@@ -124,6 +128,12 @@ async function clickFirstAction(page, action) {
     assert(await page.locator('#modalRoot .notification-disclosure').count(), 'Provider login notification popup is empty.');
     await page.locator('#modalRoot [data-action="closeModal"]').first().click();
   }
+  const providerBadge = page.locator('.provider-top-actions .notification-badge').first();
+  if (await providerBadge.count()) {
+    const badgeBox = await providerBadge.boundingBox();
+    const bellBox = await providerBadge.locator('..').boundingBox();
+    assert(badgeBox && bellBox && badgeBox.x >= bellBox.x - 10 && badgeBox.x <= bellBox.x + bellBox.width + 10, 'Provider notification badge is not anchored to the bell.');
+  }
   assert(await page.locator('.week-calendar').count(), 'Provider weekly calendar is missing.');
   assert(await page.locator('.quote-template-grid').count(), 'Provider quote templates are missing.');
   await capture(page, '02-provider-dashboard');
@@ -133,8 +143,9 @@ async function clickFirstAction(page, action) {
 
   await page.locator('.side-nav [data-action="providerTab"][data-tab="leads"]').click();
   await clickFirstAction(page, 'openRequestBoard');
-  assert(await page.locator('.request-board-card').count(), 'Provider request board is empty.');
-  assert(await page.locator('.request-board-card [data-action="providerAcceptRequest"]').count(), 'Matching provider cannot offer from the request board.');
+  assert(await page.locator('.request-opportunity').count(), 'Provider request board is empty.');
+  assert(await page.locator('.request-opportunity [data-action="providerAcceptRequest"]').count(), 'Matching provider cannot offer from the request board.');
+  await capture(page, '02b-provider-opportunities');
   await page.locator('[data-action="closeModal"]').click();
   await page.locator('[data-action="providerAcceptRequest"]').first().click();
   await page.locator('#offerPrice').fill('12');
