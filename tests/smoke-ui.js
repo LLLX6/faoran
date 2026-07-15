@@ -59,7 +59,12 @@ async function clickFirstAction(page, action) {
   await page.route('**/api/**', route => route.abort());
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => localStorage.clear());
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  try {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+  } catch (error) {
+    if (!/ERR_ABORTED|frame was detached/i.test(String(error))) throw error;
+    await page.waitForLoadState('domcontentloaded');
+  }
   await page.waitForSelector('[data-action="openUserLogin"]');
   await capture(page, '00-entry');
 
@@ -305,11 +310,27 @@ async function clickFirstAction(page, action) {
   await clickUserNav(page, 'myAccount');
   await page.locator('.account-menu [data-action="nav"][data-view="provider"]').click();
   await page.locator('[data-action="providerLogout"]').click();
+  await page.locator('[data-action="goBack"]').click();
+  await page.locator('[data-action="enterGuest"]').click();
+  if (await page.locator('.role-onboarding').count()) await page.locator('[data-action="skipOnboarding"]').click();
+  assert(await page.locator('.app-top [data-action="openNotifications"] .notification-badge').count() === 0, 'Guest must not inherit the previous user notification badge.');
+  await page.locator('.app-top [data-action="openNotifications"]').click();
+  assert(await page.locator('.notification-center-sheet .guest-note').count(), 'Guest notification privacy note is missing.');
+  assert(await page.locator('.notification-center-sheet .notification-disclosure').count() === 0, 'Guest can see notifications from the previous signed-in account.');
+  await page.locator('[data-action="closeModal"]').click();
+  await page.locator('[data-action="goBack"]').click();
   for (let i = 0; i < 6; i++) await page.locator('[data-action="brandHome"]').first().click();
   await page.waitForSelector('#adminCode');
   await page.locator('#adminCode').fill('0000');
   await page.locator('[data-action="adminLogin"]').click();
   await page.waitForSelector('.admin-shell');
+  await page.locator('.side-nav [data-action="adminTab"][data-tab="subscriptions"]').click();
+  assert(await page.locator('.subscription-command').count(), 'Subscription control center is missing.');
+  assert(await page.locator('.package-admin-grid .package-admin-card').count() >= 4, 'Editable subscription plans are missing.');
+  await page.locator('.side-nav [data-action="adminTab"][data-tab="finance"]').click();
+  assert(await page.locator('.finance-command-grid').count(), 'Financial control center is missing.');
+  await page.locator('.side-nav [data-action="adminTab"][data-tab="settings"]').click();
+  assert(await page.locator('.operations-settings').count(), 'Platform operations settings are missing.');
   await page.locator('[data-action="adminTab"][data-tab="ads"]').click();
   await page.locator('#adImages').setInputFiles(path.join(__dirname, '..', 'app-icon-512.png'));
   await page.locator('[data-action="previewAdDraft"]').click();

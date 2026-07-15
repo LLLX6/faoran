@@ -18,6 +18,12 @@ Mobile user/provider flow test (requires Playwright and Chrome):
 node tests/smoke-ui.js
 ```
 
+Mobile launch performance check:
+
+```powershell
+node tests/performance-ui.js
+```
+
 The UI flow covers offer comparison, text/image/voice chat, calendar export,
 arrival tracking, provider video, and the before/after gallery. The API flow
 also verifies waitlist matching and cross-account request collaboration.

@@ -950,6 +950,14 @@ def create_notification(con, target_kind, target_id, title, message="", *, type_
         ),
     )
     if push_ready():
+        is_chat = type_ == "chat" and bool(related_id)
+        push_tag = (
+            f"khadamati-chat-{target_kind}-{target_id or 'account'}-{related_id}"
+            if is_chat else f"khadamati-{notification_id}"
+        )
+        push_route = "https://lllx6.github.io/khadamati-app/"
+        if is_chat:
+            push_route += f"#chat={related_id}&target={target_kind}"
         threading.Thread(
             target=deliver_push,
             args=(
@@ -959,8 +967,8 @@ def create_notification(con, target_kind, target_id, title, message="", *, type_
                     "id": notification_id,
                     "title": title[:160],
                     "body": message[:1200],
-                    "tag": f"khadamati-{notification_id}",
-                    "route": "https://lllx6.github.io/faoran/",
+                    "tag": push_tag,
+                    "route": push_route,
                 },
             ),
             daemon=True,
@@ -1638,7 +1646,7 @@ class Handler(SimpleHTTPRequestHandler):
             scheme = self.headers.get("X-Forwarded-Proto", "http").split(",", 1)[0]
             image_path = provider.get("cardImage") or provider.get("imageUrl") or "/app-icon-512.png"
             image = image_path if str(image_path).startswith("http") else f"{scheme}://{host}{image_path}"
-            target = f"https://lllx6.github.io/faoran/#provider={provider_id}"
+            target = f"https://lllx6.github.io/khadamati-app/#provider={provider_id}"
             page = f"""<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
             <meta name="viewport" content="width=device-width,initial-scale=1">
             <title>{html.escape(provider['name'])} | خدماتي</title>

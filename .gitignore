@@ -1,5 +1,7 @@
 foran.sqlite3
+khadamati.sqlite3
 foran-export.json
+khadamati-export.json
 __pycache__/
 *.pyc
 server.log
