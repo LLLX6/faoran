@@ -90,6 +90,15 @@ async function clickFirstAction(page, action) {
   const searchColumns = await page.locator('.search-results-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length);
   assert(searchColumns === (IS_MOBILE ? 2 : 3), 'Search results grid does not match the active viewport.');
   assert(await page.locator('.search-results-grid [data-action="directWhatsapp"]').count() === 0, 'Public provider cards must not expose direct WhatsApp.');
+  const providerControlsFit = await page.locator('.search-results-grid .provider-listing').evaluateAll(cards => cards.every(card => {
+    const bounds = card.getBoundingClientRect();
+    return [...card.querySelectorAll('.provider-card-title-row .status,[data-action="providerDetails"]')].every(control => {
+      const rect = control.getBoundingClientRect();
+      return rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1;
+    });
+  }));
+  assert(providerControlsFit, 'Provider status or details button overflows its card.');
+  assert(await page.locator('.search-results-grid .provider-card-title-row .status.off').count() === 0, 'Unavailable providers must stay hidden from public search.');
   await capture(page, '01b-progressive-search');
   await clickUserNav(page, 'home');
 
@@ -134,6 +143,15 @@ async function clickFirstAction(page, action) {
 
   await page.locator('[data-action="goBack"]').click();
   await page.locator('[data-action="enterProvider"]').click();
+  await page.locator('[data-action="openProviderAccess"][data-mode="register"]').click();
+  assert(await page.locator('#providerRegisterForm').count(), 'Register provider must open the registration form directly.');
+  assert(await page.locator('#providerRegisterForm .registration-subservice.show').count() === 0, 'Optional sub-services should start collapsed.');
+  const progressDirection = await page.locator('.provider-reg-progress').evaluate(element => getComputedStyle(element).direction);
+  assert(progressDirection === 'rtl', 'Arabic provider registration progress must run right to left.');
+  await page.locator('[data-action="addRegistrationSubservice"]').click();
+  assert(await page.locator('#providerRegisterForm .registration-subservice.show').count() === 1, 'Add sub-service should reveal one optional field at a time.');
+  await capture(page, '01e-provider-register');
+  await page.locator('#modalRoot [data-action="closeModal"]').click();
   await page.locator('#loginPhone').fill('91234567');
   await page.locator('#loginOtp').fill('1234');
   await page.locator('[data-action="providerLogin"]').click();
@@ -153,6 +171,8 @@ async function clickFirstAction(page, action) {
   assert(await page.locator('.week-calendar').count(), 'Provider weekly calendar is missing.');
   assert(await page.locator('.quote-template-grid').count(), 'Provider quote templates are missing.');
   assert(await page.locator('.provider-request-dock').count(), 'Fixed provider request dock is missing.');
+  const providerTopFits = await page.locator('.provider-topbar').evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+  assert(providerTopFits, 'Provider top bar overflows the mobile viewport.');
   const dockBox = await page.locator('.provider-request-dock').boundingBox();
   assert(dockBox && dockBox.x >= 0 && dockBox.x + dockBox.width <= VIEWPORT_WIDTH, 'Provider request dock is outside the viewport.');
   await capture(page, '02-provider-dashboard');
