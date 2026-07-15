@@ -94,6 +94,30 @@ def main():
         user_token,
     )
     assert status == 200 and selected["request"]["acceptedProviderId"] == provider["provider"]["id"], "Offer selection failed"
+    consent = selected["request"].get("contactConsent", {})
+    assert consent.get("chat") and not consent.get("whatsapp") and not consent.get("call"), "External contact must default to disabled"
+
+    status, provider_private = request("/api/bootstrap", token=provider_token)
+    private_request = next(item for item in provider_private.get("customerRequests", []) if item["id"] == request_id)
+    assert status == 200 and not private_request.get("phone"), "Customer phone leaked before contact consent"
+
+    status, provider_message = request(
+        "/api/request/collaboration",
+        {"id": request_id, "action": "message", "text": "سأرسل عرض الموعد داخل المحادثة"},
+        provider_token,
+    )
+    assert status == 200 and not provider_message["request"].get("phone"), "Chat response leaked customer phone"
+
+    status, consent_update = request(
+        "/api/request/collaboration",
+        {"id": request_id, "action": "contact_consent", "whatsapp": True, "call": False},
+        user_token,
+    )
+    assert status == 200 and consent_update["request"]["contactConsent"]["whatsapp"], "Contact consent update failed"
+
+    status, provider_allowed = request("/api/bootstrap", token=provider_token)
+    allowed_request = next(item for item in provider_allowed.get("customerRequests", []) if item["id"] == request_id)
+    assert status == 200 and allowed_request.get("phone"), "Approved contact channel did not expose the selected request phone"
 
     status, chatted = request(
         "/api/request/collaboration",
@@ -124,6 +148,7 @@ def main():
         "admin_login": True,
         "user_validation": True,
         "offer_comparison": True,
+        "contact_privacy": True,
         "request_chat": True,
         "arrival_tracking": True,
         "waitlist": True,

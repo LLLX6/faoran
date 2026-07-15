@@ -73,6 +73,7 @@ async function clickFirstAction(page, action) {
   assert((await page.locator('.clean-grid .category-tile').count()) <= 6, 'Home must show no more than six categories.');
   assert(await page.locator('main.view > .home-ad.ad-slider').count(), 'Advertisement slider must be the first home block.');
   assert((await page.locator('.popular-rail').count()) === 0, 'Popular services rail should be removed from home.');
+  assert((await page.locator('.offline-sync-card').count()) === 0, 'Offline queue banner should not crowd the home page.');
   assert(await page.locator('.direct-request-card').count(), 'Direct request card is missing.');
   assert((await page.locator('.global-search').count()) === 0, 'Duplicated global search should be removed.');
   assert((await page.locator('main[data-view="home"] .provider-listing').count()) === 0, 'Home should not contain provider recommendation cards.');
@@ -80,11 +81,15 @@ async function clickFirstAction(page, action) {
 
   await clickUserNav(page, 'search');
   assert(await page.locator('.search-map-banner').count(), 'Search from map banner is missing.');
+  assert(await page.locator('.app-back:visible').count() === 1, 'Search should show only the global back button.');
   assert((await page.locator('.search-filter-panel').count()) === 0, 'Advanced filters should start collapsed.');
   await page.locator('[data-action="searchCategory"]').first().click();
   assert(await page.locator('.service-choice-grid').count(), 'Service stage did not open after choosing a category.');
+  const serviceOverflow = await page.locator('.service-choice-grid').evaluate(element => getComputedStyle(element).overflowX);
+  assert(['auto', 'scroll'].includes(serviceOverflow), 'Exact services should scroll horizontally.');
   const searchColumns = await page.locator('.search-results-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length);
   assert(searchColumns === (IS_MOBILE ? 2 : 3), 'Search results grid does not match the active viewport.');
+  assert(await page.locator('.search-results-grid [data-action="directWhatsapp"]').count() === 0, 'Public provider cards must not expose direct WhatsApp.');
   await capture(page, '01b-progressive-search');
   await clickUserNav(page, 'home');
 
@@ -100,6 +105,15 @@ async function clickFirstAction(page, action) {
   await page.locator('[data-action="requestWizardNext"][data-step="2"]:visible').click();
   assert(await page.locator('.request-location-stage').count(), 'Location step is missing from direct request.');
   await capture(page, '01d-direct-location');
+  const selectedServiceBeforeMap = await page.locator('#qrService').inputValue();
+  await page.locator('.request-wizard-step.active [data-action="openRequestLocationMap"]').click();
+  await page.waitForSelector('.request-map-picker .leaflet-live-map[data-selectable="1"]');
+  await page.locator('.request-map-picker .leaflet-live-map').click({ position: { x: 170, y: 170 } });
+  await page.waitForFunction(() => Boolean(document.querySelector('#mapPickLat')?.value && document.querySelector('#mapPickLng')?.value));
+  await page.locator('[data-action="usePickedRequestLocation"]').click();
+  assert(await page.locator('.request-wizard[data-step="2"]').count(), 'Map selection should resume at the location step.');
+  assert(await page.locator('#qrService').inputValue() === selectedServiceBeforeMap, 'Map selection lost the chosen service.');
+  assert(Boolean(await page.locator('#qrLocation').inputValue()), 'Selected map point was not saved to the request.');
   await page.locator('[data-action="requestWizardNext"][data-step="3"]:visible').click();
   await page.locator('#qrNote').fill('أحتاج تنفيذ هذه الخدمة في المنزل خلال هذا الأسبوع');
   await page.locator('[data-action="requestWizardNext"][data-step="4"]:visible').click();
@@ -110,6 +124,8 @@ async function clickFirstAction(page, action) {
   assert(await page.locator('.request-opportunity').count(), 'New request is missing from the request board.');
   await page.locator('[data-action="closeModal"]').click();
   await clickUserNav(page, 'myAccount');
+  assert(await page.locator('.requests-disclosure').count(), 'Grouped request sections are missing from My Account.');
+  assert(await page.locator('.requests-disclosure[open]').count() === 0, 'Request groups should start collapsed.');
   await page.locator('[data-action="openAppearance"]').click();
   await page.locator('[data-action="setDisplayScale"][data-value="large"]').click();
   assert(await page.locator('body').getAttribute('data-scale') === 'large', 'Large text mode was not applied.');
@@ -136,6 +152,9 @@ async function clickFirstAction(page, action) {
   }
   assert(await page.locator('.week-calendar').count(), 'Provider weekly calendar is missing.');
   assert(await page.locator('.quote-template-grid').count(), 'Provider quote templates are missing.');
+  assert(await page.locator('.provider-request-dock').count(), 'Fixed provider request dock is missing.');
+  const dockBox = await page.locator('.provider-request-dock').boundingBox();
+  assert(dockBox && dockBox.x >= 0 && dockBox.x + dockBox.width <= VIEWPORT_WIDTH, 'Provider request dock is outside the viewport.');
   await capture(page, '02-provider-dashboard');
   await page.locator('[data-action="openQuoteLibrary"]').first().click();
   assert(await page.locator('.modal-title').filter({ hasText: /عرض السعر|price and duration/i }).count(), 'Quote template sheet did not open.');
@@ -161,12 +180,27 @@ async function clickFirstAction(page, action) {
     assert(await page.locator('#modalRoot .notification-disclosure').count(), 'Unexpected modal blocked offer comparison.');
     await page.locator('#modalRoot [data-action="closeModal"]').first().click();
   }
+  await page.locator('.requests-disclosure').first().locator('summary').click();
   await page.locator('[data-action="compareRequestOffers"]').first().click();
   assert(await page.locator('.offer-card').count(), 'Offer comparison card is missing.');
   await capture(page, '04-offer-comparison');
   await page.locator('[data-action="acceptRequestOffer"]').first().click();
 
+  await page.locator('.requests-disclosure').first().locator('summary').click();
+  assert(await page.locator('[data-action="manageRequestContact"]').count(), 'Contact privacy control is missing after provider selection.');
+  assert(await page.locator('[data-action="requestWhatsapp"]').count() === 0, 'WhatsApp must stay hidden before customer consent.');
+  assert(await page.locator('[data-action="requestCall"]').count() === 0, 'Phone calls must stay hidden before customer consent.');
+  await page.locator('[data-action="manageRequestContact"]').first().click();
+  await page.locator('#contactAllowWhatsapp').check();
+  await page.locator('#contactAllowCall').check();
+  await page.locator('[data-action="saveRequestContactConsent"]').click();
+  await page.locator('.requests-disclosure').first().locator('summary').click();
+  assert(await page.locator('[data-action="requestWhatsapp"]').count(), 'WhatsApp was not enabled after customer consent.');
+  assert(await page.locator('[data-action="requestCall"]').count(), 'Phone calls were not enabled after customer consent.');
   await page.locator('[data-action="openRequestChat"]').first().click();
+  assert(await page.locator('.chat-quick-replies button').count() >= 3, 'Chat quick replies are missing.');
+  await page.locator('.chat-quick-replies button').first().click();
+  assert(Boolean(await page.locator('#chatText').inputValue()), 'Quick reply did not fill the chat composer.');
   await page.locator('#chatText').fill('تم تأكيد الموعد');
   await page.locator('[data-action="sendChatMessage"]').click();
   await page.waitForSelector('.chat-message.mine');
@@ -190,6 +224,11 @@ async function clickFirstAction(page, action) {
 
   await page.locator('.account-menu [data-action="nav"][data-view="provider"]').click();
   await page.locator('.side-nav [data-action="providerTab"][data-tab="leads"]').click();
+  await page.locator('[data-action="providerLeadFilter"][data-value="mine"]').click();
+  await page.locator('[data-action="openRequestChat"]').first().click();
+  assert(await page.locator('[data-action="providerCustomerWhatsapp"]').count(), 'Selected provider cannot use customer-approved WhatsApp.');
+  assert(await page.locator('[data-action="providerCustomerCall"]').count(), 'Selected provider cannot use customer-approved calls.');
+  await page.locator('[data-action="closeModal"]').click();
   await page.locator('[data-action="openArrivalTracking"]').first().click();
   await page.locator('[data-action="updateProviderArrival"][data-status="onTheWay"]').click();
   await page.waitForSelector('.arrival-card');

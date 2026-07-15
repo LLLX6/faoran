@@ -448,6 +448,7 @@ def init_db():
               status TEXT NOT NULL DEFAULT 'matching', accepted_provider_id TEXT DEFAULT '',
               matching_provider_ids TEXT DEFAULT '[]', declined_provider_ids TEXT DEFAULT '[]',
               offers TEXT DEFAULT '[]', messages TEXT DEFAULT '[]', arrival TEXT DEFAULT '{}',
+              contact_consent TEXT DEFAULT '{}',
               waitlisted INTEGER NOT NULL DEFAULT 0,
               offers_open INTEGER NOT NULL DEFAULT 1, created_at TEXT DEFAULT CURRENT_TIMESTAMP,
               updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -512,6 +513,7 @@ def init_db():
         ensure_column(con, "customer_requests", "offers", "TEXT DEFAULT '[]'")
         ensure_column(con, "customer_requests", "messages", "TEXT DEFAULT '[]'")
         ensure_column(con, "customer_requests", "arrival", "TEXT DEFAULT '{}'")
+        ensure_column(con, "customer_requests", "contact_consent", "TEXT DEFAULT '{}'")
         ensure_column(con, "customer_requests", "waitlisted", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(con, "leads", "service_value", "TEXT DEFAULT ''")
         ensure_column(con, "leads", "service_name", "TEXT DEFAULT ''")
@@ -864,6 +866,7 @@ def row_customer_request(r):
         if isinstance(message, dict)
     ]
     d["arrival"] = jload(d.pop("arrival", "{}"), {})
+    d["contactConsent"] = jload(d.pop("contact_consent", "{}"), {})
     d["waitlisted"] = bool(d.pop("waitlisted", 0))
     d["offersOpen"] = bool(d.pop("offers_open", 0))
     d["createdAt"] = d.pop("created_at", "")
@@ -1162,6 +1165,20 @@ def get_bootstrap(session=None):
                 item for item in all_customer_requests
                 if pid in item["matchingProviderIds"] or item["acceptedProviderId"] == pid
             ]
+            for item in customer_requests:
+                consent = item.get("contactConsent") or {}
+                if item.get("acceptedProviderId") != pid or not (
+                    consent.get("whatsapp") or consent.get("call")
+                ):
+                    item["phone"] = ""
+            request_lookup = {item.get("id"): item for item in customer_requests}
+            for lead in leads:
+                linked = request_lookup.get(lead.get("request_id") or lead.get("requestId") or lead.get("id"))
+                consent = (linked or {}).get("contactConsent") or {}
+                if not linked or linked.get("acceptedProviderId") != pid or not (
+                    consent.get("whatsapp") or consent.get("call")
+                ):
+                    lead["phone"] = ""
             notifications = [
                 row_notification(r)
                 for r in con.execute(
@@ -2217,9 +2234,9 @@ class Handler(SimpleHTTPRequestHandler):
             if action == "accept":
                 result = con.execute(
                     """UPDATE customer_requests SET accepted_provider_id=?,status='accepted',
-                    offers_open=0,updated_at=CURRENT_TIMESTAMP
+                    offers_open=0,contact_consent=?,updated_at=CURRENT_TIMESTAMP
                     WHERE id=? AND offers_open=1 AND COALESCE(accepted_provider_id,'')=''""",
-                    (provider_id, request_id),
+                    (provider_id, jdump({"chat": True, "whatsapp": False, "call": False}), request_id),
                 )
                 if result.rowcount != 1:
                     return self.send_json({"error": "request_already_accepted"}, 409)
@@ -2262,7 +2279,7 @@ class Handler(SimpleHTTPRequestHandler):
         request_id = str(data.get("id", "") or "")
         action = str(data.get("action", "") or "")
         if not request_id or action not in (
-            "offer", "choose_offer", "message", "arrival", "waitlist"
+            "offer", "choose_offer", "contact_consent", "message", "arrival", "waitlist"
         ):
             return self.send_json({"error": "invalid_request_action"}, 400)
         with db() as con:
@@ -2336,8 +2353,9 @@ class Handler(SimpleHTTPRequestHandler):
                     offer["status"] = "accepted" if offer.get("id") == offer_id else "declined"
                 con.execute(
                     """UPDATE customer_requests SET offers=?,accepted_provider_id=?,
-                    status='accepted',offers_open=0,waitlisted=0,updated_at=CURRENT_TIMESTAMP WHERE id=?""",
-                    (jdump(offers), selected_provider, request_id),
+                    status='accepted',offers_open=0,waitlisted=0,contact_consent=?,
+                    updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                    (jdump(offers), selected_provider, jdump({"chat": True, "whatsapp": False, "call": False}), request_id),
                 )
                 create_notification(
                     con, "provider", selected_provider, "اختار العميل عرضك",
@@ -2350,6 +2368,30 @@ class Handler(SimpleHTTPRequestHandler):
                     f"{request_id} - المزود {selected_provider}",
                     type_="request", related_id=request_id,
                     action_text="فتح الطلب", action_route=f"admin:request:{request_id}",
+                )
+
+            elif action == "contact_consent":
+                if not is_user or not item["acceptedProviderId"]:
+                    return self.send_json({"error": "contact_consent_not_allowed"}, 403)
+                consent = {
+                    "chat": True,
+                    "whatsapp": bool(data.get("whatsapp", False)),
+                    "call": bool(data.get("call", False)),
+                    "updatedAt": datetime.now(UTC).isoformat(),
+                }
+                con.execute(
+                    "UPDATE customer_requests SET contact_consent=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (jdump(consent), request_id),
+                )
+                enabled = [
+                    label for key, label in (("whatsapp", "واتساب"), ("call", "الاتصال"))
+                    if consent[key]
+                ]
+                create_notification(
+                    con, "provider", item["acceptedProviderId"], "حدّث العميل خيارات التواصل",
+                    "سمح العميل بـ " + (" و".join(enabled) if enabled else "المحادثة داخل التطبيق فقط"),
+                    type_="request", related_id=request_id, priority="normal",
+                    action_text="فتح الطلب", action_route=f"provider:request:{request_id}",
                 )
 
             elif action == "message":
@@ -2450,9 +2492,14 @@ class Handler(SimpleHTTPRequestHandler):
             updated = con.execute(
                 "SELECT * FROM customer_requests WHERE id=?", (request_id,)
             ).fetchone()
-            return self.send_json(
-                {"ok": True, "request": row_customer_request(updated)}
-            )
+            response_request = row_customer_request(updated)
+            if provider_id:
+                consent = response_request.get("contactConsent") or {}
+                if response_request.get("acceptedProviderId") != provider_id or not (
+                    consent.get("whatsapp") or consent.get("call")
+                ):
+                    response_request["phone"] = ""
+            return self.send_json({"ok": True, "request": response_request})
 
     def notification_action(self, data):
         session = self.session()
