@@ -13,7 +13,7 @@ services:
       - key: KHADAMATI_ENV
         value: production
       - key: KHADAMATI_PUBLIC_URL
-        value: https://lllx6.github.io/khadamati-app/
+        value: https://lllx6.github.io/Khadamati/
       - key: KHADAMATI_ADMIN_CODE
         sync: false
       - key: KHADAMATI_OTP_PEPPER

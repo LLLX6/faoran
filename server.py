@@ -67,7 +67,7 @@ ALLOWED_ORIGINS = {
     if item.strip()
 }
 SESSION_DAYS = int(os.environ.get("KHADAMATI_SESSION_DAYS", "30"))
-PUBLIC_APP_URL = os.environ.get("KHADAMATI_PUBLIC_URL", "https://lllx6.github.io/khadamati-app/").rstrip("/") + "/"
+PUBLIC_APP_URL = os.environ.get("KHADAMATI_PUBLIC_URL", "https://lllx6.github.io/Khadamati/").rstrip("/") + "/"
 
 ALL_PERMISSIONS = [
     "view_reports",
