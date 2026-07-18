@@ -253,7 +253,9 @@ def normalized_location(value):
     return result
 
 
-def normalized_provider_services(con, value, *, limit, fallback_price=0, default_areas=None):
+def normalized_provider_services(
+    con, value, *, limit, category_limit=1, fallback_price=0, default_areas=None
+):
     if not isinstance(value, list):
         raise DomainError("services_must_be_list", 400)
     services = []
@@ -292,9 +294,9 @@ def normalized_provider_services(con, value, *, limit, fallback_price=0, default
         )
         seen.add(key)
         categories.add(cat_id)
-        if len(services) >= max(1, int(limit)):
-            break
-    if len(categories) > 1:
+    if len(services) > max(1, int(limit)):
+        raise DomainError("service_limit_exceeded", 409)
+    if len(categories) > max(1, int(category_limit)):
         raise DomainError("provider_category_limit", 409)
     return services
 
@@ -583,6 +585,7 @@ def init_db():
               subscription_start TEXT DEFAULT '', provider_type TEXT DEFAULT 'individual', company_name TEXT DEFAULT '', company_id TEXT DEFAULT '',
               commercial_no TEXT DEFAULT '', verification_expiry TEXT DEFAULT '', commercial_expiry TEXT DEFAULT '', license_expiry TEXT DEFAULT '',
               latitude REAL, longitude REAL, location_updated_at TEXT DEFAULT '',
+              map_visible INTEGER NOT NULL DEFAULT 1, primary_service_id TEXT DEFAULT '',
               before_after TEXT DEFAULT '[]', intro_video_url TEXT DEFAULT '',
               stats TEXT NOT NULL DEFAULT '{"views":0,"whatsapp":0,"calls":0}', created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
@@ -612,7 +615,8 @@ def init_db():
             CREATE TABLE IF NOT EXISTS packages(
               id TEXT PRIMARY KEY, ar TEXT NOT NULL, en TEXT NOT NULL, price REAL NOT NULL DEFAULT 0,
               duration_days INTEGER NOT NULL DEFAULT 30, featured_boost INTEGER NOT NULL DEFAULT 0,
-              max_services INTEGER NOT NULL DEFAULT 3, max_images INTEGER NOT NULL DEFAULT 5, active INTEGER NOT NULL DEFAULT 1
+              max_services INTEGER NOT NULL DEFAULT 3, max_categories INTEGER NOT NULL DEFAULT 1,
+              max_images INTEGER NOT NULL DEFAULT 5, active INTEGER NOT NULL DEFAULT 1
             );
             CREATE TABLE IF NOT EXISTS subscriptions(
               id TEXT PRIMARY KEY, provider_id TEXT NOT NULL, package_id TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0,
@@ -810,6 +814,8 @@ def init_db():
         ensure_column(con, "providers", "latitude", "REAL")
         ensure_column(con, "providers", "longitude", "REAL")
         ensure_column(con, "providers", "location_updated_at", "TEXT DEFAULT ''")
+        ensure_column(con, "providers", "map_visible", "INTEGER NOT NULL DEFAULT 1")
+        ensure_column(con, "providers", "primary_service_id", "TEXT DEFAULT ''")
         ensure_column(con, "providers", "before_after", "TEXT DEFAULT '[]'")
         ensure_column(con, "providers", "intro_video_url", "TEXT DEFAULT ''")
         ensure_column(con, "providers", "listing_enabled", "INTEGER NOT NULL DEFAULT 1")
@@ -831,6 +837,7 @@ def init_db():
         ensure_column(con, "customer_requests", "expansion_at", "TEXT DEFAULT ''")
         ensure_column(con, "customer_requests", "ranking_version", "TEXT DEFAULT ''")
         ensure_column(con, "packages", "currency", "TEXT NOT NULL DEFAULT 'OMR'")
+        ensure_column(con, "packages", "max_categories", "INTEGER NOT NULL DEFAULT 1")
         ensure_column(con, "packages", "max_wilayats", "INTEGER NOT NULL DEFAULT 5")
         ensure_column(con, "packages", "max_governorates", "INTEGER NOT NULL DEFAULT 1")
         ensure_column(con, "packages", "monthly_response_limit", "INTEGER NOT NULL DEFAULT 30")
@@ -1113,6 +1120,8 @@ def row_provider(r, private=False, sign_private=False):
         d[k] = bool(d[k])
     d["listingEnabled"] = bool(d.pop("listing_enabled", True))
     d["requestEnabled"] = bool(d.pop("request_enabled", True))
+    d["mapVisible"] = bool(d.pop("map_visible", True))
+    d["primaryServiceId"] = d.pop("primary_service_id", "")
     d["subscriptionState"] = d.pop("subscription_state", "active") or "active"
     d["availability"] = jload(d.pop("availability", "{}"), {})
     d["responseMinutes"] = int(d.pop("response_minutes", 30) or 30)
@@ -1136,8 +1145,8 @@ def row_provider(r, private=False, sign_private=False):
     latitude = d.pop("latitude", None)
     longitude = d.pop("longitude", None)
     location_updated_at = d.pop("location_updated_at", "")
-    if not private and latitude is not None and longitude is not None:
-        latitude, longitude = round(float(latitude), 3), round(float(longitude), 3)
+    if not private and not d["mapVisible"]:
+        latitude, longitude = None, None
     d["location"] = (
         {"lat": latitude, "lng": longitude, "updatedAt": location_updated_at}
         if latitude is not None and longitude is not None
@@ -1177,6 +1186,7 @@ def row_package(r):
     d["durationDays"] = d.pop("duration_days")
     d["featuredBoost"] = d.pop("featured_boost")
     d["maxServices"] = d.pop("max_services")
+    d["maxCategories"] = d.pop("max_categories", 1)
     d["maxImages"] = d.pop("max_images")
     d["maxWilayats"] = d.pop("max_wilayats", 0)
     d["maxGovernorates"] = d.pop("max_governorates", 0)
@@ -1739,6 +1749,64 @@ def request_matches_provider(request_item, provider):
     return not request_area or bool(request_area & provider_area)
 
 
+def provider_eligibility(con, provider, *, receive_requests=False, map_only=False):
+    """Single source of truth for public listing, request intake, and map markers."""
+    item = dict(provider) if not isinstance(provider, dict) else provider
+    if not int(item.get("active") or 0) or not int(item.get("verified") or 0):
+        return False, "provider_inactive"
+    if item.get("status") in {"unavailable", "under_review", "pending", "suspended", "deleted"}:
+        return False, "provider_unavailable"
+    if not int(item.get("listing_enabled", item.get("listingEnabled", 1)) or 0):
+        return False, "listing_disabled"
+    if receive_requests:
+        if item.get("status") != "available":
+            return False, "provider_not_available"
+        if not int(item.get("request_enabled", item.get("requestEnabled", 1)) or 0):
+            return False, "requests_disabled"
+    if map_only:
+        if not int(item.get("map_visible", item.get("mapVisible", 1)) or 0):
+            return False, "map_hidden"
+        if item.get("latitude") is None or item.get("longitude") is None:
+            return False, "location_missing"
+    allowed, reason, _ = EntitlementService(con).can_receive(item.get("id", ""))
+    if receive_requests and not allowed:
+        return False, reason or "subscription_inactive"
+    if not receive_requests:
+        grants = EntitlementService(con).for_provider(item.get("id", ""))
+        if not grants.get("allowed"):
+            return False, "subscription_inactive"
+    return True, ""
+
+
+def service_availability_snapshot(con):
+    """Return privacy-safe provider counts used by the direct-request UI."""
+    services = {}
+    categories = {}
+    for row in con.execute("SELECT * FROM providers"):
+        eligible, _ = provider_eligibility(con, row, receive_requests=True)
+        if not eligible:
+            continue
+        provider_services = jload(row["services"], [])
+        provider_categories = set()
+        for service in provider_services:
+            if not isinstance(service, dict) or service.get("active") is False:
+                continue
+            cat_id = safe_text(service.get("catId"), 80)
+            service_id = safe_text(service.get("serviceId"), 80)
+            if not cat_id or not service_id:
+                continue
+            key = f"{cat_id}|{service_id}"
+            services[key] = int(services.get(key, 0)) + 1
+            provider_categories.add(cat_id)
+        for cat_id in provider_categories:
+            categories[cat_id] = int(categories.get(cat_id, 0)) + 1
+    return {
+        "services": services,
+        "categories": categories,
+        "generatedAt": datetime.now(UTC).isoformat(),
+    }
+
+
 def login_failure_state(con, account_kind, account_id):
     key = safe_text(account_id, 160) or "unknown"
     row = con.execute(
@@ -1950,13 +2018,13 @@ def get_bootstrap(session=None):
         elif is_provider:
             provider_rows = con.execute(
                 """SELECT * FROM providers WHERE id=? OR (
-                active=1 AND status!='unavailable' AND COALESCE(listing_enabled,1)=1)
+                active=1 AND verified=1 AND status!='unavailable' AND COALESCE(listing_enabled,1)=1)
                 ORDER BY featured DESC,quality_score DESC,rating DESC""",
                 (session["providerId"],),
             )
         else:
             provider_rows = con.execute(
-                """SELECT * FROM providers WHERE active=1 AND status!='unavailable'
+                """SELECT * FROM providers WHERE active=1 AND verified=1 AND status!='unavailable'
                 AND COALESCE(listing_enabled,1)=1
                 ORDER BY featured DESC,quality_score DESC,rating DESC"""
             )
@@ -2277,6 +2345,7 @@ def get_bootstrap(session=None):
             "notifications": notifications,
             "users": users,
             "advertisements": advertisements,
+            "serviceAvailability": service_availability_snapshot(con),
             "settings": settings,
             "appConfig": {
                 "nameAr": "خدماتي",
@@ -2541,8 +2610,9 @@ def upsert_provider(con, data):
         """INSERT INTO providers(id,name,phone,gov,wilayah,areas,bio,hours,status,active,verified,featured,
         package_id,rating,reviews,admin_note,image_path,card_image,pin_hash,services,work_images,documents,quality_score,response_score,
         subscription_until,subscription_start,provider_type,company_name,company_id,commercial_no,
-        verification_expiry,commercial_expiry,license_expiry,latitude,longitude,location_updated_at,stats)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        verification_expiry,commercial_expiry,license_expiry,latitude,longitude,location_updated_at,
+        map_visible,primary_service_id,stats)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(id) DO UPDATE SET name=excluded.name,phone=excluded.phone,gov=excluded.gov,
         wilayah=excluded.wilayah,areas=excluded.areas,bio=excluded.bio,hours=excluded.hours,status=excluded.status,
         active=excluded.active,verified=excluded.verified,featured=excluded.featured,package_id=excluded.package_id,
@@ -2553,7 +2623,8 @@ def upsert_provider(con, data):
         company_name=excluded.company_name,company_id=excluded.company_id,commercial_no=excluded.commercial_no,
         verification_expiry=excluded.verification_expiry,commercial_expiry=excluded.commercial_expiry,
         license_expiry=excluded.license_expiry,latitude=excluded.latitude,longitude=excluded.longitude,
-        location_updated_at=excluded.location_updated_at""",
+        location_updated_at=excluded.location_updated_at,map_visible=excluded.map_visible,
+        primary_service_id=excluded.primary_service_id""",
         (
             p["id"], p.get("name", ""), p.get("phone", ""), p.get("gov", ""), p.get("wilayah", ""),
             jdump(p.get("areas", [])), p.get("bio", ""), p.get("hours", ""), p.get("status", "available"),
@@ -2576,6 +2647,10 @@ def upsert_provider(con, data):
             location.get("lat"),
             location.get("lng"),
             location.get("updatedAt", ""),
+            int(bool(p.get("mapVisible", existing_provider.get("mapVisible", True)))),
+            safe_text(
+                p.get("primaryServiceId", existing_provider.get("primaryServiceId", "")), 80
+            ),
             jdump(p.get("stats", existing_provider.get("stats", {"views": 0, "whatsapp": 0, "calls": 0}))),
         ),
     )
@@ -3216,7 +3291,6 @@ class Handler(SimpleHTTPRequestHandler):
                 "pinHash": hash_pin(pin) if len(pin) >= 4 else "",
             }
             raw_services = data.get("services") if isinstance(data.get("services"), list) else []
-            service_limit = 5 if item["providerType"] == "company" else 3
             if not item["services"] and "|" in item["service"]:
                 cat_id, service_id = item["service"].split("|", 1)
                 raw_services = [{
@@ -3226,8 +3300,12 @@ class Handler(SimpleHTTPRequestHandler):
                 }]
             try:
                 with db() as con:
+                    foundation = PlanCatalog.get(con, "foundation_12m", False) or {}
+                    is_company = item["providerType"] == "company"
                     item["services"] = normalized_provider_services(
-                        con, raw_services, limit=service_limit,
+                        con, raw_services,
+                        limit=max(1, int(foundation.get("max_services") or 1)) if is_company else 1,
+                        category_limit=max(1, int(foundation.get("max_categories") or 1)) if is_company else 1,
                         fallback_price=item["priceFrom"], default_areas=[item["wilayah"]],
                     )
             except DomainError as err:
@@ -4451,7 +4529,9 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"error": "not_found"}, 404)
             provider = row_provider(row, private=True)
             if path == "/api/provider/profile":
-                entitlements = EntitlementService(con).for_provider(provider["id"])
+                entitlements = EntitlementService(con).profile_limits(
+                    provider["id"], preserve_existing=True
+                )
                 name = safe_text(data.get("name", provider["name"]), 120)
                 phone = normalize_phone(data.get("phone", provider["phone"]))
                 bio = safe_text(data.get("bio", provider["bio"]), 900)
@@ -4475,6 +4555,7 @@ class Handler(SimpleHTTPRequestHandler):
                         con,
                         data.get("services", provider["services"]),
                         limit=max(1, int(entitlements.get("maxServices") or 1)),
+                        category_limit=max(1, int(entitlements.get("maxCategories") or 1)),
                         default_areas=areas,
                     )
                 except DomainError as err:
@@ -4488,6 +4569,12 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json({"error": "description_word_limit"}, 400)
                 if not services:
                     return self.send_json({"error": "service_required"}, 400)
+                primary_service_id = safe_text(
+                    data.get("primaryServiceId", provider.get("primaryServiceId", "")), 80
+                )
+                service_ids = {service.get("serviceId") for service in services}
+                if primary_service_id not in service_ids:
+                    primary_service_id = services[0].get("serviceId", "")
                 if len(areas) > int(entitlements.get("maxWilayats") or max(1, len(areas))):
                     return self.send_json({"error": "area_limit_exceeded"}, 409)
                 provider.update({
@@ -4505,6 +4592,10 @@ class Handler(SimpleHTTPRequestHandler):
                     "hours": safe_text(data.get("hours", provider["hours"]), 240),
                     "status": status,
                     "services": services,
+                    "primaryServiceId": primary_service_id,
+                    "mapVisible": strict_bool(
+                        data.get("mapVisible"), provider.get("mapVisible", True)
+                    ),
                     "cardImage": data.get("cardImage", provider.get("cardImage", "")),
                     "beforeAfter": data.get("beforeAfter", provider.get("beforeAfter", [])),
                     "beforeAfterData": data.get("beforeAfterData", {}),
@@ -4968,6 +5059,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json({"error": "fixed_plan_catalog"}, 409)
                 entitlements = {
                     "maxServices": bounded_int(data.get("maxServices", 1), 1, minimum=1, maximum=100),
+                    "maxCategories": bounded_int(data.get("maxCategories", 1), 1, minimum=1, maximum=20),
                     "maxImages": bounded_int(data.get("maxImages", 5), 5, minimum=1, maximum=100),
                     "maxWilayats": bounded_int(data.get("maxWilayats", 5), 5, minimum=1, maximum=100),
                     "maxGovernorates": bounded_int(data.get("maxGovernorates", 1), 1, minimum=1, maximum=20),
@@ -4980,7 +5072,7 @@ class Handler(SimpleHTTPRequestHandler):
                 }
                 con.execute(
                     """UPDATE packages SET ar=?,en=?,price=?,currency='OMR',duration_days=?,
-                    max_services=?,max_images=?,max_wilayats=?,max_governorates=?,
+                    max_services=?,max_categories=?,max_images=?,max_wilayats=?,max_governorates=?,
                     monthly_response_limit=?,lead_delay_minutes=?,max_team_members=?,max_branches=?,
                     shared_inbox=?,advanced_reports=?,badge_ar=?,badge_en=?,entitlements=?,
                     active=?,legacy=0 WHERE id=?""",
@@ -4989,7 +5081,7 @@ class Handler(SimpleHTTPRequestHandler):
                         data.get("en", "Package"),
                         finite_number(data.get("price", 0), 0, minimum=0, maximum=1_000_000),
                         bounded_int(data.get("durationDays", 30), 30, minimum=1, maximum=3650),
-                        entitlements["maxServices"], entitlements["maxImages"],
+                        entitlements["maxServices"], entitlements["maxCategories"], entitlements["maxImages"],
                         entitlements["maxWilayats"], entitlements["maxGovernorates"],
                         entitlements["monthlyResponses"], entitlements["leadDelayMinutes"],
                         entitlements["teamMembers"], entitlements["branches"],

@@ -230,20 +230,17 @@ class KhadamatiDomainTests(unittest.TestCase):
         consent.set_channel(request_id, user_id, provider_id, "whatsapp", False)
         self.assertFalse(consent.allowed(request_id, provider_id, "whatsapp"))
 
-    def test_provider_can_select_many_services_only_inside_one_category(self):
+    def test_individual_provider_is_limited_to_one_primary_service(self):
         provider_id = self.provider("105")
         self.activate(provider_id, "basic_12m")
         entitlement = EntitlementService(self.con)
         valid = entitlement.validate_profile(
             provider_id,
-            services=[
-                {"catId": "cleaning", "serviceId": "home_cleaning"},
-                {"catId": "cleaning", "serviceId": "sofa_cleaning"},
-                {"catId": "cleaning", "serviceId": "carpet_cleaning"},
-            ],
+            services=[{"catId": "cleaning", "serviceId": "home_cleaning"}],
             areas=["السيب", "بوشر"],
         )
-        self.assertEqual(5, valid["maxServices"])
+        self.assertEqual(1, valid["maxServices"])
+        self.assertEqual(2, valid["maxCategories"])
         with self.assertRaises(DomainError) as caught:
             entitlement.validate_profile(
                 provider_id,
@@ -253,7 +250,103 @@ class KhadamatiDomainTests(unittest.TestCase):
                 ],
                 areas=["السيب"],
             )
+        self.assertEqual("service_limit_exceeded", caught.exception.code)
+
+    def test_business_plan_allows_multiple_services_and_categories_within_limit(self):
+        provider_id = self.provider("106")
+        self.con.execute("UPDATE providers SET provider_type='company' WHERE id=?", (provider_id,))
+        self.activate(provider_id, "business_12m")
+        services = [
+            {"catId": f"category-{index % 5}", "serviceId": f"service-{index}"}
+            for index in range(20)
+        ]
+        limits = EntitlementService(self.con).validate_profile(
+            provider_id, services=services, areas=["السيب", "بوشر"]
+        )
+        self.assertEqual(20, limits["maxServices"])
+        self.assertEqual(5, limits["maxCategories"])
+        with self.assertRaises(DomainError) as caught:
+            EntitlementService(self.con).validate_profile(
+                provider_id,
+                services=services + [{"catId": "category-6", "serviceId": "service-21"}],
+                areas=["السيب"],
+            )
         self.assertEqual("provider_category_limit", caught.exception.code)
+
+    def test_request_eligibility_requires_approved_available_provider(self):
+        provider_id = self.provider("107")
+        self.activate(provider_id, "professional_12m")
+        service = EntitlementService(self.con)
+        self.assertTrue(service.can_receive(provider_id)[0])
+        self.con.execute("UPDATE providers SET verified=0 WHERE id=?", (provider_id,))
+        self.assertEqual("provider_not_approved", service.can_receive(provider_id)[1])
+        self.con.execute("UPDATE providers SET verified=1,status='busy' WHERE id=?", (provider_id,))
+        self.assertEqual("provider_unavailable", service.can_receive(provider_id)[1])
+
+    def test_service_limits_cannot_be_bypassed_through_normalizer(self):
+        rows = self.con.execute(
+            "SELECT category_id,id FROM services WHERE active=1 ORDER BY category_id,id"
+        ).fetchall()
+        first = rows[0]
+        same_category = next(
+            row for row in rows if row["category_id"] == first["category_id"] and row["id"] != first["id"]
+        )
+        other_category = next(row for row in rows if row["category_id"] != first["category_id"])
+        with self.assertRaises(DomainError) as caught:
+            server.normalized_provider_services(
+                self.con,
+                [
+                    {"catId": first["category_id"], "serviceId": first["id"]},
+                    {"catId": same_category["category_id"], "serviceId": same_category["id"]},
+                ],
+                limit=1,
+                category_limit=2,
+            )
+        self.assertEqual("service_limit_exceeded", caught.exception.code)
+        with self.assertRaises(DomainError) as caught:
+            server.normalized_provider_services(
+                self.con,
+                [
+                    {"catId": first["category_id"], "serviceId": first["id"]},
+                    {"catId": other_category["category_id"], "serviceId": other_category["id"]},
+                ],
+                limit=2,
+                category_limit=1,
+            )
+        self.assertEqual("provider_category_limit", caught.exception.code)
+
+    def test_map_location_is_exact_only_when_provider_allows_visibility(self):
+        provider_id = self.provider("108")
+        self.activate(provider_id, "professional_12m")
+        self.con.execute(
+            "UPDATE providers SET latitude=?,longitude=?,map_visible=1 WHERE id=?",
+            (23.612345, 58.241234, provider_id),
+        )
+        row = self.con.execute("SELECT * FROM providers WHERE id=?", (provider_id,)).fetchone()
+        public = server.row_provider(row, private=False)
+        self.assertEqual(23.612345, public["location"]["lat"])
+        self.assertEqual(58.241234, public["location"]["lng"])
+        self.con.execute("UPDATE providers SET map_visible=0 WHERE id=?", (provider_id,))
+        row = self.con.execute("SELECT * FROM providers WHERE id=?", (provider_id,)).fetchone()
+        self.assertIsNone(server.row_provider(row, private=False)["location"])
+
+    def test_service_availability_excludes_unapproved_and_busy_providers(self):
+        provider_id = self.provider("109")
+        self.activate(provider_id, "professional_12m")
+        snapshot = server.service_availability_snapshot(self.con)
+        self.assertGreater(snapshot["services"].get("homecare|electrician", 0), 0)
+        self.con.execute("UPDATE providers SET status='busy' WHERE id=?", (provider_id,))
+        busy = server.service_availability_snapshot(self.con)
+        self.assertLess(
+            busy["services"].get("homecare|electrician", 0),
+            snapshot["services"].get("homecare|electrician", 0),
+        )
+        self.con.execute("UPDATE providers SET status='available',verified=0 WHERE id=?", (provider_id,))
+        unapproved = server.service_availability_snapshot(self.con)
+        self.assertEqual(
+            busy["services"].get("homecare|electrician", 0),
+            unapproved["services"].get("homecare|electrician", 0),
+        )
     def test_production_otp_never_exposes_development_code(self):
         environment = {
             "KHADAMATI_ENV": "production",

@@ -27,6 +27,7 @@ PLAN_DEFINITIONS: tuple[dict[str, Any], ...] = (
         "currency": OMR,
         "duration_days": 365,
         "max_services": 3,
+        "max_categories": 1,
         "max_images": 5,
         "max_wilayats": 5,
         "max_governorates": 1,
@@ -49,6 +50,7 @@ PLAN_DEFINITIONS: tuple[dict[str, Any], ...] = (
         "currency": OMR,
         "duration_days": 183,
         "max_services": 5,
+        "max_categories": 2,
         "max_images": 5,
         "max_wilayats": 10,
         "max_governorates": 1,
@@ -71,6 +73,7 @@ PLAN_DEFINITIONS: tuple[dict[str, Any], ...] = (
         "currency": OMR,
         "duration_days": 365,
         "max_services": 5,
+        "max_categories": 2,
         "max_images": 5,
         "max_wilayats": 10,
         "max_governorates": 1,
@@ -93,6 +96,7 @@ PLAN_DEFINITIONS: tuple[dict[str, Any], ...] = (
         "currency": OMR,
         "duration_days": 365,
         "max_services": 10,
+        "max_categories": 3,
         "max_images": 10,
         "max_wilayats": 25,
         "max_governorates": 2,
@@ -115,6 +119,7 @@ PLAN_DEFINITIONS: tuple[dict[str, Any], ...] = (
         "currency": OMR,
         "duration_days": 365,
         "max_services": 20,
+        "max_categories": 5,
         "max_images": 15,
         "max_wilayats": 0,
         "max_governorates": 5,
@@ -238,6 +243,7 @@ class PlanCatalog:
         for plan in PLAN_DEFINITIONS:
             entitlements = {
                 "maxServices": plan["max_services"],
+                "maxCategories": plan["max_categories"],
                 "maxImages": plan["max_images"],
                 "maxWilayats": plan["max_wilayats"],
                 "maxGovernorates": plan["max_governorates"],
@@ -251,15 +257,16 @@ class PlanCatalog:
             con.execute(
                 """INSERT INTO packages(
                 id,ar,en,price,duration_days,featured_boost,max_services,max_images,active,
-                currency,max_wilayats,max_governorates,monthly_response_limit,
+                currency,max_categories,max_wilayats,max_governorates,monthly_response_limit,
                 lead_delay_minutes,max_team_members,max_branches,shared_inbox,
                 advanced_reports,badge_ar,badge_en,foundation_once,verified_required,
                 legacy,entitlements)
-                VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)
+                VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)
                 ON CONFLICT(id) DO UPDATE SET ar=excluded.ar,en=excluded.en,
                 price=excluded.price,duration_days=excluded.duration_days,
                 max_services=excluded.max_services,max_images=excluded.max_images,
-                currency=excluded.currency,max_wilayats=excluded.max_wilayats,
+                currency=excluded.currency,max_categories=excluded.max_categories,
+                max_wilayats=excluded.max_wilayats,
                 max_governorates=excluded.max_governorates,
                 monthly_response_limit=excluded.monthly_response_limit,
                 lead_delay_minutes=excluded.lead_delay_minutes,
@@ -271,7 +278,7 @@ class PlanCatalog:
                 (
                     plan["id"], plan["ar"], plan["en"], plan["price"],
                     plan["duration_days"], 0, plan["max_services"], plan["max_images"],
-                    plan["currency"], plan["max_wilayats"], plan["max_governorates"],
+                    plan["currency"], plan["max_categories"], plan["max_wilayats"], plan["max_governorates"],
                     plan["monthly_response_limit"], plan["lead_delay_minutes"],
                     plan["max_team_members"], plan["max_branches"], plan["shared_inbox"],
                     plan["advanced_reports"], plan["badge_ar"], plan["badge_en"],
@@ -707,6 +714,7 @@ class EntitlementService:
             "planId": plan.get("id", "") if plan else "",
             "allowed": sync["state"] in SubscriptionService.ACTIVE_ACCESS_STATES,
             "maxServices": int((plan or {}).get("max_services") or 0),
+            "maxCategories": int((plan or {}).get("max_categories") or 0),
             "maxImages": int((plan or {}).get("max_images") or 0),
             "maxWilayats": int((plan or {}).get("max_wilayats") or 0),
             "maxGovernorates": int((plan or {}).get("max_governorates") or 0),
@@ -720,8 +728,47 @@ class EntitlementService:
             "badgeEn": (plan or {}).get("badge_en", ""),
         }
 
-    def validate_profile(self, provider_id: str, *, services: Iterable[Any], areas: Iterable[Any]) -> dict[str, Any]:
+    def profile_limits(self, provider_id: str, *, preserve_existing: bool = True) -> dict[str, Any]:
+        """Return enforceable limits without deleting data retained from an older plan."""
         entitlements = self.for_provider(provider_id)
+        if not preserve_existing:
+            return entitlements
+        provider = self.con.execute(
+            "SELECT provider_type,services,areas FROM providers WHERE id=?", (provider_id,)
+        ).fetchone()
+        if not provider:
+            return entitlements
+        existing_services = load(provider["services"], [])
+        existing_categories = {
+            str(item.get("catId", "")).strip()
+            for item in existing_services
+            if isinstance(item, dict) and str(item.get("catId", "")).strip()
+        }
+        existing_service_count = len({
+            f"{item.get('catId')}|{item.get('serviceId')}"
+            for item in existing_services
+            if isinstance(item, dict) and item.get("catId") and item.get("serviceId")
+        })
+        existing_area_count = len({
+            str(area).strip() for area in load(provider["areas"], []) if str(area).strip()
+        })
+        is_company = str(provider["provider_type"] or "individual") == "company"
+        service_limit = int(entitlements.get("maxServices") or 0) if is_company else 1
+        return {
+            **entitlements,
+            "accountType": "company" if is_company else "individual",
+            "maxServices": max(service_limit, existing_service_count),
+            "maxCategories": max(int(entitlements.get("maxCategories") or 0), len(existing_categories)),
+            "maxWilayats": max(int(entitlements.get("maxWilayats") or 0), existing_area_count),
+            "grandfathered": bool(
+                existing_service_count > service_limit
+                or len(existing_categories) > int(entitlements.get("maxCategories") or 0)
+                or existing_area_count > int(entitlements.get("maxWilayats") or 0)
+            ),
+        }
+
+    def validate_profile(self, provider_id: str, *, services: Iterable[Any], areas: Iterable[Any]) -> dict[str, Any]:
+        entitlements = self.profile_limits(provider_id, preserve_existing=True)
         categories = {
             str(item.get("catId", "")).strip()
             for item in services
@@ -732,7 +779,7 @@ class EntitlementService:
             for item in services if isinstance(item, dict) and item.get("catId") and item.get("serviceId")
         })
         areas_count = len({str(area).strip() for area in areas if str(area).strip()})
-        if len(categories) > 1:
+        if entitlements["maxCategories"] and len(categories) > entitlements["maxCategories"]:
             raise DomainError("provider_category_limit", 409)
         if entitlements["maxServices"] and services_count > entitlements["maxServices"]:
             raise DomainError("service_limit_exceeded", 409)
@@ -743,11 +790,13 @@ class EntitlementService:
     def can_receive(self, provider_id: str) -> tuple[bool, str, dict[str, Any]]:
         entitlements = self.for_provider(provider_id)
         provider = self.con.execute(
-            "SELECT active,status,request_enabled FROM providers WHERE id=?", (provider_id,)
+            "SELECT active,verified,status,listing_enabled,request_enabled FROM providers WHERE id=?", (provider_id,)
         ).fetchone()
         if not provider or not int(provider["active"] or 0):
             return False, "provider_inactive", entitlements
-        if provider["status"] == "unavailable" or not int(provider["request_enabled"] or 0):
+        if not int(provider["verified"] or 0) or not int(provider["listing_enabled"] or 0):
+            return False, "provider_not_approved", entitlements
+        if provider["status"] != "available" or not int(provider["request_enabled"] or 0):
             return False, "provider_unavailable", entitlements
         if not entitlements["allowed"]:
             return False, "subscription_inactive", entitlements

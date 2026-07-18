@@ -162,9 +162,17 @@ def run():
 
             public = expect(http(base, "/api/bootstrap"), {200}, "public provider coordinates")
             public_a = next(item for item in public["providers"] if item["id"] == provider_a["id"])
-            if public_a.get("location"):
-                assert public_a["location"]["lat"] == round(public_a["location"]["lat"], 3)
-                assert public_a["location"]["lng"] == round(public_a["location"]["lng"], 3)
+            assert public_a.get("mapVisible") is True
+            assert public_a.get("location", {}).get("lat") == 23.621234
+            assert public_a.get("location", {}).get("lng") == 58.221234
+            expect(
+                http(base, "/api/provider/profile", {"mapVisible": False}, token_a),
+                {200},
+                "provider map privacy opt-out",
+            )
+            hidden_public = expect(http(base, "/api/bootstrap"), {200}, "hidden provider coordinates")
+            hidden_a = next(item for item in hidden_public["providers"] if item["id"] == provider_a["id"])
+            assert hidden_a.get("mapVisible") is False and not hidden_a.get("location")
 
             private_a = expect(http(base, "/api/provider/me", token=token_a), {200}, "provider private profile")["provider"]
             signed_document = private_a["documents"][0]
@@ -303,7 +311,7 @@ def run():
                 assert error.code == 413, f"oversized body returned HTTP {error.code}"
 
             sw = (ROOT / "service-worker.js").read_text(encoding="utf-8")
-            assert "khadamati-app-shell-v49-onboarding" in sw
+            assert "khadamati-app-shell-v50-maps-availability" in sw
             assert "api|media|uploads" in sw and "cache: 'no-store'" in sw
 
             return {

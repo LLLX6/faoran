@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS providers (
   phone TEXT NOT NULL,
   gov TEXT,
   wilayah TEXT,
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  location_updated_at TIMESTAMPTZ,
+  map_visible BOOLEAN NOT NULL DEFAULT TRUE,
   areas JSONB,
   bio TEXT,
   hours TEXT,
@@ -51,6 +55,9 @@ CREATE TABLE IF NOT EXISTS providers (
   image_path TEXT DEFAULT '',
   card_image TEXT DEFAULT '',
   pin_hash TEXT DEFAULT '',
+  primary_service_id TEXT DEFAULT '',
+  listing_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  request_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   services JSONB NOT NULL,
   work_images JSONB DEFAULT '[]',
   documents JSONB DEFAULT '[]',
@@ -127,9 +134,22 @@ CREATE TABLE IF NOT EXISTS packages (
   duration_days INTEGER NOT NULL DEFAULT 30,
   featured_boost INTEGER NOT NULL DEFAULT 0,
   max_services INTEGER NOT NULL DEFAULT 3,
+  max_categories INTEGER NOT NULL DEFAULT 1,
+  max_wilayats INTEGER NOT NULL DEFAULT 5,
   max_images INTEGER NOT NULL DEFAULT 5,
   active BOOLEAN NOT NULL DEFAULT TRUE
 );
+
+-- Safe parity additions when applying this file to an existing PostgreSQL staging database.
+ALTER TABLE providers ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE providers ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE providers ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMPTZ;
+ALTER TABLE providers ADD COLUMN IF NOT EXISTS map_visible BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE providers ADD COLUMN IF NOT EXISTS primary_service_id TEXT DEFAULT '';
+ALTER TABLE providers ADD COLUMN IF NOT EXISTS listing_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE providers ADD COLUMN IF NOT EXISTS request_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE packages ADD COLUMN IF NOT EXISTS max_categories INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE packages ADD COLUMN IF NOT EXISTS max_wilayats INTEGER NOT NULL DEFAULT 5;
 
 CREATE TABLE IF NOT EXISTS subscriptions (
   id TEXT PRIMARY KEY,

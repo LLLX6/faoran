@@ -79,7 +79,7 @@ async function clickFirstAction(page, action) {
   });
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', error => errors.push(error.stack || error.message));
   page.on('console', message => {
     if (message.type() === 'error' && !/favicon|tile|Failed to load resource/.test(message.text())) {
       errors.push(message.text());
@@ -94,7 +94,7 @@ async function clickFirstAction(page, action) {
       return json({ token: 'ui-user-token', user: { id: 'ui-user', phone: '96895550001', name: 'مستخدم الاختبار الآلي', gov: 'مسقط', wilayah: 'السيب', pinConfigured: true } });
     }
     if (url.pathname === '/api/provider/login') {
-      return json({ token: 'ui-provider-token', provider: { id: 'p1', name: 'سالم البلوشي', phone: '96891234567', gov: 'مسقط', wilayah: 'السيب', areas: ['السيب'], bio: 'كهربائي منازل بخبرة وعناية', hours: 'الأحد - الخميس: 8:00 ص - 8:00 م', status: 'available', active: true, verified: true, featured: true, packageId: 'professional_12m', subscriptionState: 'active', services: [{ id: 'p1s1', catId: 'homecare', serviceId: 'electrician', priceFrom: 8, active: true, areas: ['السيب'] }], workImages: [], documents: [], rating: 4.9, reviews: 12, qualityScore: 94, pinConfigured: true } });
+      return json({ token: 'ui-provider-token', provider: { id: 'p1', name: 'سالم البلوشي', phone: '96891234567', gov: 'مسقط', wilayah: 'السيب', areas: ['السيب'], bio: 'كهربائي منازل بخبرة وعناية', hours: 'الأحد - الخميس: 8:00 ص - 8:00 م', status: 'available', active: true, verified: true, featured: true, mapVisible: true, location: { lat: 23.61, lng: 58.24, updatedAt: '2026-07-18T08:00:00Z' }, packageId: 'professional_12m', subscriptionState: 'active', services: [{ id: 'p1s1', catId: 'homecare', serviceId: 'electrician', priceFrom: 8, active: true, areas: ['السيب'] }], workImages: [], documents: [], rating: 4.9, reviews: 12, qualityScore: 94, pinConfigured: true } });
     }
     if (url.pathname === '/api/provider/profile') return json({});
     if (url.pathname === '/api/admin/login') return json({ token: 'ui-admin-token', user: { id: 'ui-admin', name: 'إدارة خدماتي', role: 'super_admin' } });
@@ -194,16 +194,27 @@ async function clickFirstAction(page, action) {
   assert(await recommendationGuide.evaluate(image => image.naturalWidth >= 900 && image.naturalHeight >= 900), 'Provider recommendation guidance is not high resolution.');
   assert(await recommendationGuide.evaluate(image => getComputedStyle(image).objectFit === 'cover'), 'Provider recommendation artwork does not fill its square frame.');
   await page.locator('[data-action="closeModal"]').click();
-  await page.locator('[data-action="quickRequestForm"]').first().click();
-  await page.waitForSelector('.request-wizard');
+  assert(await page.locator('#modalRoot .modal-backdrop').count() === 0, 'Closing the request board left a blocking modal layer.');
+  await page.locator('.direct-request-card [data-action="quickRequestForm"]').click();
+  await page.waitForTimeout(150);
+  assert(await page.locator('.request-wizard').count(), `Direct request did not open: ${(await page.locator('#toast').textContent().catch(() => '')) || errors.join(' | ') || 'no visible message'}`);
   await capture(page, '01c-direct-service');
-  await page.locator('#qrCategory').selectOption({ index: 1 });
-  await page.waitForSelector('#qrService');
-  await page.locator('#qrService').selectOption({ index: 1 });
+  await page.locator('[data-action="requestSelectCategory"].available').first().click();
+  await page.waitForSelector('[data-action="requestSelectService"]');
+  await page.locator('[data-action="requestSelectService"].available').first().click();
+  assert(Boolean(await page.locator('#qrCategory').inputValue()), 'Available category was not selected.');
+  assert(Boolean(await page.locator('#qrService').inputValue()), 'Available service was not selected.');
   await page.locator('[data-action="requestWizardNext"][data-step="2"]:visible').click();
   assert(await page.locator('.request-location-stage').count(), 'Location step is missing from direct request.');
   await capture(page, '01d-direct-location');
   const selectedServiceBeforeMap = await page.locator('#qrService').inputValue();
+  const selectedGovernorateBeforeMap = await page.locator('#qrGov').inputValue();
+  await page.locator('.request-wizard-step.active [data-action="openRequestLocationMap"]').click();
+  await page.waitForSelector('.request-map-picker .leaflet-live-map[data-selectable="1"]');
+  await page.locator('.request-map-picker [data-action="resumeRequestLocation"]').click();
+  assert(await page.locator('.request-wizard[data-step="2"]').count(), 'Closing the request map should return to the location step only.');
+  assert(await page.locator('#qrService').inputValue() === selectedServiceBeforeMap, 'Closing the request map lost the chosen service.');
+  assert(await page.locator('#qrGov').inputValue() === selectedGovernorateBeforeMap, 'Closing the request map lost the chosen governorate.');
   await page.locator('.request-wizard-step.active [data-action="openRequestLocationMap"]').click();
   await page.waitForSelector('.request-map-picker .leaflet-live-map[data-selectable="1"]');
   await page.locator('.request-map-picker .leaflet-live-map').click({ position: { x: 170, y: 170 } });
@@ -247,8 +258,11 @@ async function clickFirstAction(page, action) {
   assert(await page.locator('#providerRegisterForm .registration-subservice.show').count() === 0, 'Optional sub-services should start collapsed.');
   const progressDirection = await page.locator('.provider-reg-progress').evaluate(element => getComputedStyle(element).direction);
   assert(progressDirection === 'rtl', 'Arabic provider registration progress must run right to left.');
+  assert(!(await page.locator('[data-action="addRegistrationSubservice"]').isVisible()), 'Individual registration must not offer extra services.');
+  await page.locator('#regProviderType').selectOption('company');
+  assert(await page.locator('[data-action="addRegistrationSubservice"]').isVisible(), 'Company registration must offer plan-limited services.');
   await page.locator('[data-action="addRegistrationSubservice"]').click();
-  assert(await page.locator('#providerRegisterForm .registration-subservice.show').count() === 1, 'Add sub-service should reveal one optional field at a time.');
+  assert(await page.locator('#providerRegisterForm .registration-subservice.show').count() === 1, 'Company add-service should reveal one optional field at a time.');
   await capture(page, '01e-provider-register');
   await page.locator('#modalRoot [data-action="closeModal"]').click();
   await page.locator('[data-action="toggleLang"]').first().click();
@@ -431,6 +445,12 @@ async function clickFirstAction(page, action) {
   await page.locator('[data-action="providerDetails"][data-id="p1"]').first().click();
   assert(await page.locator('.provider-intro-video').count(), 'Provider introduction video is missing from the public profile.');
   assert(await page.locator('.before-after-card').count(), 'Before/after gallery is missing from the public profile.');
+  await page.locator('.provider-detail-sheet [data-action="openProviderOnMap"]').click();
+  await page.waitForSelector('.live-map-full .map-my-location');
+  await page.locator('.live-map-full .map-my-location').click();
+  await page.waitForTimeout(250);
+  await page.locator('.live-map-full [data-action="closeModal"]').click();
+  assert(await page.locator('.provider-detail-sheet').count(), 'Closing the provider map must restore the same provider profile.');
   await page.locator('[data-action="closeModal"]').click();
   await clickUserNav(page, 'myAccount');
   await page.locator('.account-menu [data-action="nav"][data-view="provider"]').click();
