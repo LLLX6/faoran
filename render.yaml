@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: khadamati
+    name: khadamati-app-api
     repo: https://github.com/LLLX6/Khadamati
     runtime: python
     plan: free

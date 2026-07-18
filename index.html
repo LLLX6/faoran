@@ -537,7 +537,7 @@ body{background:linear-gradient(180deg,#eef7f7 0,#f8fafc 42%,#edf5f3 100%)}
 'use strict';
 const STORAGE_KEY = 'KHADAMATI_MARKET_OS_V21';
 const APP_VERSION = 41;
-const APP_BUILD = 'khadamati-app-v42-production-2026-07-18';
+const APP_BUILD = 'khadamati-app-v43-production-2026-07-18';
 const LEGACY_STORAGE_KEYS = ['KHADAMATI_MARKET_OS_V20','FORAN_MARKET_OS_V14'];
 const ONBOARDING_STORAGE_KEY = 'KHADAMATI_ONBOARDING_V1';
 const SUBSCRIPTION_MIGRATION_KEY = 'KHADAMATI_SUBSCRIPTION_MIGRATION_V1';
@@ -599,9 +599,13 @@ const AUTH_KEY = 'KHADAMATI_AUTH_V3';
 let AUTH = JSON.parse(localStorage.getItem(AUTH_KEY) || localStorage.getItem('FORAN_AUTH_V2') || '{}');
 function saveAuth(){ localStorage.setItem(AUTH_KEY, JSON.stringify(AUTH)); }
 function activeAuthToken(){return AUTH.adminToken||AUTH.providerToken||AUTH.userToken||'';}
-const DEFAULT_REMOTE_API='https://khadamati.onrender.com';
+const DEFAULT_REMOTE_API='https://khadamati-app-api.onrender.com';
 function apiBase(){
  const configured=String(localStorage.getItem('KHADAMATI_API_BASE')||window.KHADAMATI_API_BASE||'').replace(/\/+$/,'');
+ if(['https://khadamati.onrender.com','https://faoran.onrender.com','https://khadamati-app.onrender.com'].includes(configured)){
+  localStorage.setItem('KHADAMATI_API_BASE',DEFAULT_REMOTE_API);
+  return DEFAULT_REMOTE_API;
+ }
  if(configured)return configured;
  return /(^|\.)github\.io$/i.test(location.hostname)?DEFAULT_REMOTE_API:'';
 }
