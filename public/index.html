@@ -3338,7 +3338,8 @@ async function downloadApiFile(path,filename){
 }
 async function protectedDocument(src,downloadName=''){
  if(String(src).startsWith('data:')){const a=document.createElement('a');a.href=src;if(downloadName)a.download=downloadName;else a.target='_blank';a.click();return;}
- const res=await fetch(src,{headers:{Authorization:`Bearer ${AUTH.adminToken||''}`}});
+ const source=/^\/(?:uploads|media)\//.test(String(src))?apiUrl(src):src;
+ const res=await fetch(source,{headers:{Authorization:`Bearer ${AUTH.adminToken||''}`}});
  if(!res.ok)throw new Error('document_access_denied');
  const url=URL.createObjectURL(await res.blob()),a=document.createElement('a');a.href=url;if(downloadName)a.download=downloadName;else{a.target='_blank';a.rel='noopener';}a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
