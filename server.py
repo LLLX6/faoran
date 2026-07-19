@@ -1162,6 +1162,24 @@ def row_provider(r, private=False, sign_private=False):
     return d
 
 
+def provider_request_view(payload, created_at=""):
+    """Return one pending provider request with stable frontend field names."""
+    item = dict(payload or {})
+    description = safe_text(item.get("bio") or item.get("note"), 600)
+    item["bio"] = description
+    item["note"] = description
+    item["pending"] = True
+    item["active"] = False
+    item["status"] = "pending"
+    item["services"] = item.get("services") if isinstance(item.get("services"), list) else []
+    item["documents"] = item.get("documents") if isinstance(item.get("documents"), list) else []
+    item["workImages"] = item.get("workImages") if isinstance(item.get("workImages"), list) else []
+    if created_at:
+        item["createdAt"] = created_at
+    item.pop("pinHash", None)
+    return item
+
+
 def row_review(r, private=False):
     d = dict(r)
     d["approved"] = bool(d["approved"])
@@ -1363,6 +1381,21 @@ def validated_session(con, session):
         return {
             "kind": "provider", "providerId": provider["id"], "name": provider["name"],
             "role": role, "memberId": member_id, "providerPermissions": provider_permissions,
+        }
+    if kind == "provider_pending":
+        request_id = safe_text(session.get("requestId", ""), 120)
+        row = con.execute(
+            "SELECT payload FROM provider_requests WHERE id=?", (request_id,)
+        ).fetchone()
+        if not row:
+            return None
+        payload = jload(row["payload"], {})
+        phone = normalize_phone(payload.get("phone", ""))
+        if not phone or not phone_matches(session.get("phone", ""), phone):
+            return None
+        return {
+            "kind": "provider_pending", "requestId": request_id,
+            "name": payload.get("name", ""), "phone": phone,
         }
     return None
 
@@ -2010,6 +2043,7 @@ def get_bootstrap(session=None):
             categories.append(cd)
         is_admin = bool(session and session.get("kind") == "admin")
         is_provider = bool(session and session.get("kind") == "provider")
+        is_pending_provider = bool(session and session.get("kind") == "provider_pending")
         is_user = bool(session and session.get("kind") == "user")
         if is_admin:
             provider_rows = con.execute(
@@ -2037,18 +2071,23 @@ def get_bootstrap(session=None):
             for r in provider_rows
         ]
         requests = []
-        if has_permission(session, "review_requests"):
-            for r in con.execute("SELECT * FROM provider_requests ORDER BY created_at DESC"):
-                payload = jload(r["payload"], {}) | {"createdAt": r["created_at"]}
-                payload["pending"] = True
-                payload["active"] = False
-                payload["status"] = payload.get("status", "unavailable")
+        if has_permission(session, "review_requests") or is_pending_provider:
+            if is_pending_provider:
+                request_rows = con.execute(
+                    "SELECT * FROM provider_requests WHERE id=?",
+                    (session.get("requestId", ""),),
+                )
+            else:
+                request_rows = con.execute(
+                    "SELECT * FROM provider_requests ORDER BY created_at DESC"
+                )
+            for r in request_rows:
+                payload = jload(r["payload"], {})
                 payload["services"] = payload.get("services", [])
                 if not payload["services"] and "|" in payload.get("service", ""):
                     cat_id, service_id = payload["service"].split("|", 1)
                     payload["services"] = [{"id": f"pending-{payload.get('id','')}", "catId": cat_id, "serviceId": service_id, "priceFrom": payload.get("priceFrom", 0), "active": True, "areas": [payload.get("wilayah", "")]}]
-                payload.pop("pinHash", None)
-                requests.append(payload)
+                requests.append(provider_request_view(payload, r["created_at"]))
         platform_row = con.execute("SELECT value FROM settings WHERE key='platform'").fetchone()
         platform_settings = jload(platform_row["value"], {}) if platform_row else {}
         public_setting_keys = {
@@ -3072,6 +3111,8 @@ class Handler(SimpleHTTPRequestHandler):
             phone = normalize_phone(data.get("phone", ""))
             if len(phone) < 11:
                 return self.send_json({"error": "valid_phone_required"}, 400)
+            pending_request = None
+            provider_row = None
             with db() as con:
                 lock_state = login_failure_state(con, "provider", phone)
                 if lock_state["locked"]:
@@ -3131,13 +3172,29 @@ class Handler(SimpleHTTPRequestHandler):
                 team_pin_ok = bool(
                     team_row and verify_secret(data.get("pin", ""), team_row["pin_hash"])
                 )
-                if not (row or team_row) or not (owner_pin_ok or team_pin_ok or otp_ok):
+                if not (owner_pin_ok or team_pin_ok or otp_ok):
+                    for request_row in con.execute(
+                        "SELECT id,payload,created_at FROM provider_requests ORDER BY created_at DESC"
+                    ):
+                        request_payload = jload(request_row["payload"], {})
+                        if (
+                            phone_matches(request_payload.get("phone", ""), phone)
+                            and request_payload.get("pinHash")
+                            and verify_secret(data.get("pin", ""), request_payload["pinHash"])
+                        ):
+                            pending_request = provider_request_view(
+                                request_payload, request_row["created_at"]
+                            )
+                            break
+                if not (owner_pin_ok or team_pin_ok or otp_ok or pending_request):
                     attempts = record_login_failure(con, "provider", phone, phone)
                     return self.send_json(
                         {"error": "invalid_provider_login", "attempts": attempts},
                         403,
                     )
-                if team_row and (team_pin_ok or (otp_ok and not row)):
+                if pending_request:
+                    clear_login_failures(con, "provider", phone)
+                elif team_row and (team_pin_ok or (otp_ok and not row)):
                     provider_id = team_row["provider_id"]
                     provider_row = con.execute(
                         "SELECT * FROM providers WHERE id=? AND active=1 AND status!='deleted'",
@@ -3152,18 +3209,26 @@ class Handler(SimpleHTTPRequestHandler):
                     provider_role = team_row["role"]
                     provider_permissions = jload(team_row["permissions"], [])
                     member_id = team_row["id"]
-                else:
+                elif row:
                     provider_row = row
                     provider_id = row["id"]
                     clear_login_failures(con, "provider", phone)
                     provider_role = "provider_owner"
                     provider_permissions = list(PROVIDER_ROLE_PERMISSIONS["provider_owner"])
                     member_id = ""
-                if owner_pin_ok and not str(row["pin_hash"] or "").startswith("pbkdf2_sha256$"):
+                if owner_pin_ok and row and not str(row["pin_hash"] or "").startswith("pbkdf2_sha256$"):
                     con.execute(
                         "UPDATE providers SET pin_hash=? WHERE id=?",
                         (hash_pin(data.get("pin", "")), row["id"]),
                     )
+            if pending_request:
+                token = issue_token({
+                    "kind": "provider_pending", "requestId": pending_request["id"],
+                    "name": pending_request.get("name", ""), "phone": phone,
+                })
+                return self.send_json({
+                    "token": token, "pending": True, "request": pending_request,
+                })
             if not provider_row:
                 return self.send_json({"error": "invalid_provider_login"}, 403)
             provider = row_provider(provider_row, private=True, sign_private=True)
@@ -3284,12 +3349,14 @@ class Handler(SimpleHTTPRequestHandler):
                 "services": [],
                 "priceFrom": base_price,
                 "note": safe_text(data.get("note"), 600),
+                "bio": safe_text(data.get("bio") or data.get("note"), 600),
                 "hours": safe_text(data.get("hours"), 240),
                 "imagePath": "",
                 "workImages": [],
                 "documents": [],
                 "pinHash": hash_pin(pin) if len(pin) >= 4 else "",
             }
+            item["note"] = item["bio"]
             raw_services = data.get("services") if isinstance(data.get("services"), list) else []
             if not item["services"] and "|" in item["service"]:
                 cat_id, service_id = item["service"].split("|", 1)
@@ -3343,8 +3410,7 @@ class Handler(SimpleHTTPRequestHandler):
                 con.execute("INSERT INTO provider_requests(id,payload) VALUES(?,?)", (item["id"], jdump(item)))
                 settings = jload(con.execute("SELECT value FROM settings WHERE key='platform'").fetchone()["value"], {})
             send_whatsapp(settings.get("adminWhatsapp"), f"طلب مزود جديد في خدماتي: {item['name']} - {item['phone']} - {len(item['services'])} خدمات")
-            safe_item = item.copy()
-            safe_item.pop("pinHash", None)
+            safe_item = provider_request_view(item)
             return self.send_json({"ok": True, "request": safe_item}, 201)
         if path == "/api/reviews":
             return self.save_review(data)
@@ -4940,8 +5006,9 @@ class Handler(SimpleHTTPRequestHandler):
                 if not row:
                     return self.send_json({"error": "not_found"}, 404)
                 payload = jload(row["payload"], {})
+                description = safe_text(payload.get("bio") or payload.get("note"), 600)
                 if decision == "accept":
-                    note_words = len(str(payload.get("note", "")).split())
+                    note_words = len(description.split())
                     if not payload.get("commercialNo"):
                         return self.send_json({"error": "commercial_number_required"}, 400)
                     if note_words < 3 or note_words > 20:
@@ -4966,7 +5033,7 @@ class Handler(SimpleHTTPRequestHandler):
                         "wilayah": payload.get("wilayah", ""),
                         "location": payload.get("location"),
                         "areas": [payload.get("wilayah", "")],
-                        "bio": payload.get("note", ""),
+                        "bio": description,
                         "hours": payload.get("hours", ""),
                         "status": "available",
                         "active": True,
@@ -5002,6 +5069,29 @@ class Handler(SimpleHTTPRequestHandler):
                         cat_id, service_id = service.split("|", 1)
                         provider["services"] = [{"id": slug("ps"), "catId": cat_id, "serviceId": service_id, "priceFrom": float(payload.get("priceFrom") or 0), "active": True, "areas": [payload.get("wilayah", "")]}]
                     upsert_provider(con, provider)
+                    promoted_session = {
+                        "kind": "provider", "providerId": provider["id"],
+                        "name": provider["name"], "role": "provider_owner", "memberId": "",
+                        "providerPermissions": list(PROVIDER_ROLE_PERMISSIONS["provider_owner"]),
+                    }
+                    for auth_row in con.execute(
+                        "SELECT id,session_json FROM auth_sessions WHERE revoked=0"
+                    ):
+                        auth_data = jload(auth_row["session_json"], {})
+                        if (
+                            auth_data.get("kind") == "provider_pending"
+                            and auth_data.get("requestId") == data.get("id")
+                        ):
+                            con.execute(
+                                "UPDATE auth_sessions SET session_json=? WHERE id=?",
+                                (jdump(promoted_session), auth_row["id"]),
+                            )
+                    create_notification(
+                        con, "provider", provider["id"], "تم اعتماد حسابك",
+                        "أصبح حسابك جاهزًا للدخول واستقبال الطلبات المطابقة لخدماتك.",
+                        type_="provider", related_id=provider["id"], priority="high",
+                        action_text="فتح الحساب", action_route="home",
+                    )
                     try:
                         SubscriptionService(con).request_plan(
                             provider["id"], "foundation_12m", payment_required=False,
@@ -5021,9 +5111,16 @@ class Handler(SimpleHTTPRequestHandler):
                         )
                     log_audit(con, session, "provider.request.accepted", provider["id"], provider["name"])
                     send_whatsapp(provider["phone"], "تم قبول حسابك كمزود في خدماتي. يمكنك الدخول من بوابة المزودين.")
+                    approved_row = con.execute(
+                        "SELECT * FROM providers WHERE id=?", (provider["id"],)
+                    ).fetchone()
                 else:
                     log_audit(con, session, "provider.request.rejected", data.get("id", ""), payload.get("name", ""))
-                return self.send_json({"ok": True})
+                return self.send_json({
+                    "ok": True,
+                    "provider": row_provider(approved_row, private=True, sign_private=True)
+                    if decision == "accept" and approved_row else None,
+                })
             if path == "/api/admin/review-status":
                 review_id = safe_text(data.get("id"), 120)
                 approved = strict_bool(data.get("approved"), True)

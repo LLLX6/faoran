@@ -56,6 +56,11 @@ def main():
 
     provider_phone = "96895550991"
     provider_pin = "7319"
+    status, same_phone_user = request(
+        "/api/users/login",
+        {"phone": provider_phone, "name": "مستخدم ومزود", "pin": "2468"},
+    )
+    expect(status, same_phone_user, {200}, "User account with provider phone failed")
     status, registration = request(
         "/api/provider-requests",
         {
@@ -81,6 +86,20 @@ def main():
     )
     expect(status, registration, {201}, "Provider registration failed")
     registration_id = registration["request"]["id"]
+    assert registration["request"]["bio"] == "خدمة كهرباء منزلية دقيقة وموثوقة"
+
+    status, pending_login = request(
+        "/api/provider/login", {"phone": provider_phone, "pin": provider_pin}
+    )
+    expect(status, pending_login, {200}, "Pending provider login failed")
+    assert pending_login.get("pending") is True
+    assert pending_login["request"]["id"] == registration_id
+    pending_token = pending_login["token"]
+
+    status, pending_state = request("/api/bootstrap", token=pending_token)
+    expect(status, pending_state, {200}, "Pending provider state failed")
+    assert len(pending_state.get("requests", [])) == 1
+    assert pending_state["requests"][0]["bio"] == "خدمة كهرباء منزلية دقيقة وموثوقة"
 
     status, decision = request(
         "/api/admin/request-decision",
@@ -88,6 +107,12 @@ def main():
         admin_token,
     )
     expect(status, decision, {200}, "Provider approval failed")
+    assert decision.get("provider", {}).get("phone") == provider_phone
+
+    status, expired_pending_state = request("/api/bootstrap", token=pending_token)
+    expect(status, expired_pending_state, {200}, "Expired pending session fallback failed")
+    assert not expired_pending_state.get("requests"), "Approved request remained in pending state"
+    assert expired_pending_state.get("currentProvider", {}).get("phone") == provider_phone
 
     status, admin_state = request("/api/admin/session", token=admin_token)
     expect(status, admin_state, {200}, "Admin state failed")
