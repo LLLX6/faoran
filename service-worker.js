@@ -1,9 +1,22 @@
-const CACHE_NAME = 'khadamati-app-shell-v52-release';
+const CACHE_NAME = 'khadamati-app-shell-v53-world-class';
 const SHELL = [
   './',
   './index.html',
+  './assets/styles/khadamati-v53.css',
   './app-icon-192.png',
   './app-icon-512.png',
+  './assets/providers/omani-electrician-v53.webp',
+  './assets/providers/omani-cleaning-team-v53.webp',
+  './assets/providers/omani-ac-technician-v53.webp',
+  './assets/providers/omani-moving-team-v53.webp',
+  './assets/providers/omani-tech-technician-v53.webp',
+  './assets/providers/omani-events-team-v53.webp',
+  './assets/providers/omani-construction-team-v53.webp',
+  './assets/providers/omani-car-technician-v53.webp',
+  './assets/providers/omani-private-tutor-v53.webp',
+  './assets/providers/omani-home-care-v53.webp',
+  './assets/providers/omani-tailor-v53.webp',
+  './assets/providers/omani-tech-company-v53.webp',
   './assets/onboarding/v49/user-service.webp',
   './assets/onboarding/v49/user-direct-request.webp',
   './assets/onboarding/v49/user-matching.webp',

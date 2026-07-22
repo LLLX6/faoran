@@ -154,6 +154,7 @@ async function clickFirstAction(page, action) {
   assert(launchImages.every(item => item.ok), `A launch image failed to load: ${launchImages.filter(item => !item.ok).map(item => item.src).join(', ')}`);
   await capture(page, '00b-user-onboarding');
   await page.locator('[data-action="skipOnboarding"]').click();
+  assert(await page.locator('#toastRoot .toast').count() === 0, 'A validation toast remained visible after successful sign-in.');
   const persistedUserAuth = await page.evaluate(() => JSON.parse(localStorage.getItem('KHADAMATI_AUTH_V3') || '{}'));
   assert(persistedUserAuth.userToken === 'ui-user-token', 'User authentication was not persisted for the next app launch.');
 
@@ -186,6 +187,9 @@ async function clickFirstAction(page, action) {
   }));
   assert(providerControlsFit, 'Provider status or details button overflows its card.');
   assert(await page.locator('.search-results-grid .provider-card-title-row .status.off').count() === 0, 'Unavailable providers must stay hidden from public search.');
+  const firstProviderImage = page.locator('.search-results-grid .provider-listing .listing-media img').first();
+  assert(/assets\/providers\/omani-electrician-v53\.webp/.test(await firstProviderImage.getAttribute('src')), 'The launch provider card is still using a generated placeholder.');
+  assert(await firstProviderImage.evaluate(image => image.complete && image.naturalWidth >= 800), 'The launch provider image did not load at production quality.');
   await capture(page, '01b-progressive-search');
   await clickUserNav(page, 'home');
 
@@ -318,6 +322,13 @@ async function clickFirstAction(page, action) {
   const englishDockBox = await page.locator('.provider-request-dock').boundingBox();
   assert(englishDockBox && englishDockBox.x >= 0 && englishDockBox.x + englishDockBox.width <= VIEWPORT_WIDTH, 'English Opportunities dock is outside the viewport.');
   assert(await page.locator('.provider-request-dock').filter({ hasText: /Opportunities/i }).count(), 'English Opportunities label is missing.');
+  const providerDockContentFits = await page.locator('.provider-request-dock').evaluate(element => {
+    const icon = element.querySelector(':scope > span:first-child')?.getBoundingClientRect();
+    const copy = element.querySelector('.provider-request-dock-copy')?.getBoundingClientRect();
+    if (!icon || !copy) return false;
+    return copy.width > 80 && (copy.left >= icon.right - 1 || icon.left >= copy.right - 1);
+  });
+  assert(providerDockContentFits, 'Provider Opportunities icon overlaps its label.');
   await capture(page, '02a-provider-english');
   await page.locator('.provider-top-actions [data-action="toggleLang"]').click();
   await page.waitForTimeout(100);
@@ -371,6 +382,12 @@ async function clickFirstAction(page, action) {
   assert(await page.locator('[data-action="requestWhatsapp"]').count(), 'WhatsApp was not enabled after customer consent.');
   assert(await page.locator('[data-action="requestCall"]').count(), 'Phone calls were not enabled after customer consent.');
   await page.locator('[data-action="openRequestChat"]').first().click();
+  const chatViewportFit = await page.locator('.chat-sheet').evaluate(sheet => {
+    const rect = sheet.getBoundingClientRect();
+    const composer = sheet.querySelector('.chat-composer')?.getBoundingClientRect();
+    return rect.top <= 1 && rect.left <= 1 && rect.right >= innerWidth - 1 && rect.bottom >= innerHeight - 1 && composer && composer.left >= -1 && composer.right <= innerWidth + 1 && composer.bottom <= innerHeight + 1;
+  });
+  assert(chatViewportFit, 'Chat does not fill the active viewport or its composer overflows the phone screen.');
   assert(await page.locator('.chat-sheet [data-action="refreshRequestChat"]').count() === 0, 'Chat still exposes a manual refresh button.');
   assert(await page.evaluate(() => Boolean(window.__khadamatiChatPoll)), 'Chat automatic refresh did not start.');
   assert(await page.locator('.chat-quick-replies button').count() >= 3, 'Chat quick replies are missing.');

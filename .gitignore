@@ -15,3 +15,6 @@ tests/__*.sqlite3
 tests/__*-uploads/
 tests/__screens-*/
 tests/__debug*.png
+__screenshots-*/
+v*-contact-sheet.jpg
+v*-mobile-contact-sheet.jpg
