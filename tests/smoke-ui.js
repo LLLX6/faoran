@@ -114,8 +114,12 @@ async function clickFirstAction(page, action) {
   await capture(page, '00-entry');
 
   await page.locator('[data-action="openUserLogin"]').click();
+  await page.locator('#customerLoginPhone').click();
+  assert(await page.locator('#customerLoginPhone').isVisible(), 'Clicking inside the sign-in sheet closed it unexpectedly.');
   await page.locator('#customerLoginPhone').fill('95550001');
   await page.locator('#customerLoginName').fill('مستخدم الاختبار الآلي');
+  await page.locator('[data-action="customerLogin"]').click();
+  assert(await page.locator('#customerLoginPin').isVisible(), 'Submitting without a PIN must keep the sign-in sheet open.');
   await page.locator('#customerLoginPin').fill('2468');
   await page.locator('[data-action="customerLogin"]').click();
   await page.waitForSelector('.role-onboarding');
@@ -150,6 +154,8 @@ async function clickFirstAction(page, action) {
   assert(launchImages.every(item => item.ok), `A launch image failed to load: ${launchImages.filter(item => !item.ok).map(item => item.src).join(', ')}`);
   await capture(page, '00b-user-onboarding');
   await page.locator('[data-action="skipOnboarding"]').click();
+  const persistedUserAuth = await page.evaluate(() => JSON.parse(localStorage.getItem('KHADAMATI_AUTH_V3') || '{}'));
+  assert(persistedUserAuth.userToken === 'ui-user-token', 'User authentication was not persisted for the next app launch.');
 
   assert((await page.locator('.clean-grid .category-tile').count()) <= 6, 'Home must show no more than six categories.');
   assert(await page.locator('main.view > .home-ad.ad-slider').count(), 'Advertisement slider must be the first home block.');
@@ -279,6 +285,8 @@ async function clickFirstAction(page, action) {
   await page.locator('[data-action="providerLogin"]').click();
   await page.waitForSelector('.role-onboarding');
   await page.locator('[data-action="skipOnboarding"]').click();
+  const dualRoleAuth = await page.evaluate(() => JSON.parse(localStorage.getItem('KHADAMATI_AUTH_V3') || '{}'));
+  assert(dualRoleAuth.providerToken === 'ui-provider-token' && dualRoleAuth.userToken === 'ui-user-token', 'Provider sign-in discarded the existing user session on the same device.');
   await page.waitForTimeout(200);
   if (await page.locator('#modalRoot .modal-backdrop.show').count()) {
     assert(await page.locator('#modalRoot .notification-disclosure').count(), 'Provider login notification popup is empty.');
@@ -363,6 +371,8 @@ async function clickFirstAction(page, action) {
   assert(await page.locator('[data-action="requestWhatsapp"]').count(), 'WhatsApp was not enabled after customer consent.');
   assert(await page.locator('[data-action="requestCall"]').count(), 'Phone calls were not enabled after customer consent.');
   await page.locator('[data-action="openRequestChat"]').first().click();
+  assert(await page.locator('.chat-sheet [data-action="refreshRequestChat"]').count() === 0, 'Chat still exposes a manual refresh button.');
+  assert(await page.evaluate(() => Boolean(window.__khadamatiChatPoll)), 'Chat automatic refresh did not start.');
   assert(await page.locator('.chat-quick-replies button').count() >= 3, 'Chat quick replies are missing.');
   await page.locator('.chat-quick-replies button').first().click();
   assert(Boolean(await page.locator('#chatText').inputValue()), 'Quick reply did not fill the chat composer.');
@@ -377,10 +387,18 @@ async function clickFirstAction(page, action) {
   await page.waitForTimeout(900);
   await page.locator('[data-action="toggleChatRecording"]').click();
   await page.waitForSelector('.voice-ready:not(:empty)');
+  assert(await page.locator('[data-action="cancelChatAudio"]').count() === 1, 'Voice recording cannot be discarded before sending.');
+  await page.locator('[data-action="cancelChatAudio"]').click();
+  assert(await page.locator('.voice-ready:not(:empty)').count() === 0, 'Discarded voice recording remained in the composer.');
+  await page.locator('[data-action="toggleChatRecording"]').click();
+  await page.waitForTimeout(900);
+  await page.locator('[data-action="toggleChatRecording"]').click();
+  await page.waitForSelector('.voice-ready:not(:empty)');
   await page.locator('[data-action="sendChatMessage"]').click();
   await page.waitForSelector('.chat-message.mine audio');
   await capture(page, '05-request-chat');
   await page.locator('[data-action="closeModal"]').click();
+  assert(await page.evaluate(() => !window.__khadamatiChatPoll), 'Chat automatic refresh continued after closing the conversation.');
 
   const downloadPromise = page.waitForEvent('download');
   await page.locator('[data-action="addRequestCalendar"]').first().click();
@@ -449,7 +467,7 @@ async function clickFirstAction(page, action) {
   await page.waitForSelector('.live-map-full .map-my-location');
   await page.locator('.live-map-full .map-my-location').click();
   await page.waitForTimeout(250);
-  await page.locator('.live-map-full [data-action="closeModal"]').click();
+  await page.locator('.live-map-full [data-action="closeModalSoft"]').click();
   assert(await page.locator('.provider-detail-sheet').count(), 'Closing the provider map must restore the same provider profile.');
   await page.locator('[data-action="closeModal"]').click();
   await clickUserNav(page, 'myAccount');

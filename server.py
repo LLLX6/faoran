@@ -521,8 +521,28 @@ SEED_PROVIDERS = [
 ]
 
 
+SQL_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+SQL_COLUMN_DEFINITION_RE = re.compile(
+    r"^(?:TEXT|INTEGER|REAL)(?:\s+NOT\s+NULL)?(?:\s+DEFAULT\s+(?:CURRENT_TIMESTAMP|'[^']*'|-?\d+(?:\.\d+)?))?$",
+    re.IGNORECASE,
+)
+
+
+def trusted_sql_identifier(value):
+    value = str(value or "")
+    if not SQL_IDENTIFIER_RE.fullmatch(value):
+        raise ValueError("invalid_sql_identifier")
+    return f'"{value}"'
+
+
 def ensure_column(con, table, column, definition):
-    columns = [r["name"] for r in con.execute(f"PRAGMA table_info({table})")]
+    table_sql = trusted_sql_identifier(table)
+    column_sql = trusted_sql_identifier(column)
+    definition = str(definition or "TEXT").strip()
+    if not SQL_COLUMN_DEFINITION_RE.fullmatch(definition):
+        raise ValueError("invalid_sql_column_definition")
+    # SQLite does not parameterize identifiers; both identifiers are regex-validated above.
+    columns = [r["name"] for r in con.execute(f"PRAGMA table_info({table_sql})")]  # nosec B608
     if column not in columns:
         original_definition = definition or "TEXT"
         effective_definition = original_definition
@@ -535,10 +555,11 @@ def ensure_column(con, table, column, definition):
             )
             if "DEFAULT" not in effective_definition.upper():
                 effective_definition = effective_definition.strip() + " DEFAULT ''"
-        con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {effective_definition}")
+        # The identifiers and the complete column definition use strict allowlists.
+        con.execute(f"ALTER TABLE {table_sql} ADD COLUMN {column_sql} {effective_definition}")  # nosec B608
         if "current_timestamp" in original_definition.lower() or "datetime('now')" in original_definition.lower():
             con.execute(
-                f"UPDATE {table} SET {column}=CURRENT_TIMESTAMP WHERE {column} IS NULL OR {column}=''"
+                f"UPDATE {table_sql} SET {column_sql}=CURRENT_TIMESTAMP WHERE {column_sql} IS NULL OR {column_sql}=''"  # nosec B608
             )
 
 
@@ -2750,9 +2771,9 @@ class Handler(SimpleHTTPRequestHandler):
             "Content-Security-Policy",
             "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; "
             "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https:; "
-            "img-src 'self' data: blob: https:; media-src 'self' data: blob:; "
+            "img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; "
             "font-src 'self' data: https:; connect-src 'self' https://khadamati-app-api.onrender.com https:; "
-            "worker-src 'self' blob:; manifest-src 'self'",
+            "frame-src https://www.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'",
         )
         if self.headers.get("X-Forwarded-Proto", "").split(",", 1)[0].strip() == "https":
             self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
