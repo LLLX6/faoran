@@ -167,6 +167,46 @@ async function clickFirstAction(page, action) {
   assert((await page.locator('main[data-view="home"] .provider-listing').count()) === 0, 'Home should not contain provider recommendation cards.');
   await capture(page, '01-user-home');
 
+  await clickUserNav(page, 'services');
+  assert(await page.locator('.app-back:visible').count() === 1, 'Services should show only the global back button.');
+  const servicesRail = page.locator('#servicesCategoryRail');
+  assert(await servicesRail.count(), 'Services category rail is missing.');
+  const railMetrics = await servicesRail.evaluate(async element => {
+    const chips = [...element.querySelectorAll('.chip-tab')];
+    const before = element.scrollLeft;
+    const distance = Math.min(220, Math.max(0, element.scrollWidth - element.clientWidth));
+    element.scrollLeft = getComputedStyle(element).direction === 'rtl' ? -distance : distance;
+    await new Promise(resolve => requestAnimationFrame(() => resolve()));
+    return {
+      before,
+      after: element.scrollLeft,
+      overflow: getComputedStyle(element).overflowX,
+      touchAction: getComputedStyle(element).touchAction,
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      chipsFit: chips.every(chip => {
+        const rect = chip.getBoundingClientRect();
+        return Number(getComputedStyle(chip).flexShrink) === 0 && rect.width >= 82 && chip.scrollWidth <= chip.clientWidth + 1;
+      }),
+    };
+  });
+  assert(['auto', 'scroll'].includes(railMetrics.overflow), 'Services categories are not horizontally scrollable.');
+  assert(railMetrics.scrollWidth > railMetrics.clientWidth, 'Services rail should overflow instead of shrinking every category.');
+  assert(Math.abs(railMetrics.after - railMetrics.before) > 20, 'Services category rail did not respond to horizontal scrolling.');
+  assert(/pan-x|auto/.test(railMetrics.touchAction), 'Services rail does not allow a horizontal touch gesture.');
+  assert(railMetrics.chipsFit, 'A services category label is clipped or its chip is being compressed.');
+  await page.locator('[data-action="servicesCategory"][data-cat="cleaning"]').click();
+  assert(await page.locator('[data-action="servicesCategory"][data-cat="cleaning"][aria-selected="true"]').count(), 'Selecting a services category did not update the active tab.');
+  assert(await page.locator('.services-category-panel').count() === 1, 'Services should render one selected category rather than every category at once.');
+  const serviceCardMetrics = await page.locator('.services-service-grid .service-tile').evaluateAll(cards => cards.every(card => {
+    const rect = card.getBoundingClientRect();
+    const label = card.querySelector('strong');
+    return rect.width >= 78 && rect.left >= -1 && rect.right <= window.innerWidth + 1 && label && label.getBoundingClientRect().right <= rect.right + 1;
+  }));
+  assert(serviceCardMetrics, 'A service card or label overflows the small-screen grid.');
+  await capture(page, '01a-mobile-services');
+  await clickUserNav(page, 'home');
+
   await clickUserNav(page, 'search');
   assert(await page.locator('.search-map-banner').count(), 'Search from map banner is missing.');
   assert(await page.locator('.app-back:visible').count() === 1, 'Search should show only the global back button.');
@@ -186,6 +226,25 @@ async function clickFirstAction(page, action) {
     });
   }));
   assert(providerControlsFit, 'Provider status or details button overflows its card.');
+  const providerContentMetrics = await page.locator('.search-results-grid .provider-listing').evaluateAll(cards => cards.map(card => {
+    const media = card.querySelector('.listing-media')?.getBoundingClientRect();
+    const title = card.querySelector('.listing-title')?.getBoundingClientRect();
+    const price = card.querySelector('.listing-price')?.getBoundingClientRect();
+    const status = card.querySelector('.provider-card-title-row .status')?.getBoundingClientRect();
+    const favourite = card.querySelector('.heart')?.getBoundingClientRect();
+    if (!media || !title || !price || !status || !favourite) return { ok: false, reason: 'missing element' };
+    const controlsOverlap = !(status.right <= favourite.left || status.left >= favourite.right || status.bottom <= favourite.top || status.top >= favourite.bottom);
+    return {
+      ok: title.top >= media.bottom - 1 && price.top >= media.bottom - 1 && status.top >= media.top - 1 && status.bottom <= media.bottom + 1 && !controlsOverlap,
+      media: { top: media.top, bottom: media.bottom },
+      title: { top: title.top, bottom: title.bottom },
+      price: { top: price.top, bottom: price.bottom },
+      status: { top: status.top, bottom: status.bottom },
+      favourite: { top: favourite.top, bottom: favourite.bottom },
+      controlsOverlap,
+    };
+  }));
+  assert(providerContentMetrics.every(item => item.ok), `Provider text or price covers the provider image instead of staying in the card body: ${JSON.stringify(providerContentMetrics)}`);
   assert(await page.locator('.search-results-grid .provider-card-title-row .status.off').count() === 0, 'Unavailable providers must stay hidden from public search.');
   const firstProviderImage = page.locator('.search-results-grid .provider-listing .listing-media img').first();
   assert(/assets\/providers\/omani-electrician-v53\.webp/.test(await firstProviderImage.getAttribute('src')), 'The launch provider card is still using a generated placeholder.');
@@ -243,6 +302,9 @@ async function clickFirstAction(page, action) {
   assert(await page.locator('.request-opportunity').count(), 'New request is missing from the request board.');
   await page.locator('[data-action="closeModal"]').click();
   await clickUserNav(page, 'myAccount');
+  assert(await page.locator('.app-back:visible').count() === 1, 'My Account shows a duplicate back control.');
+  assert(await page.locator('.account-profile-card [data-action="editAccount"] svg').count() === 1, 'Account edit action is not using the familiar edit icon.');
+  assert((await page.locator('.account-menu [data-action="editAccount"] b').textContent()).trim() === 'إعدادات الحساب', 'Account settings label is still long or unclear.');
   assert(await page.locator('.requests-disclosure').count(), 'Grouped request sections are missing from My Account.');
   assert(await page.locator('.requests-disclosure[open]').count() === 0, 'Request groups should start collapsed.');
   await page.locator('.requests-disclosure summary').first().click();
@@ -390,16 +452,30 @@ async function clickFirstAction(page, action) {
   assert(chatViewportFit, 'Chat does not fill the active viewport or its composer overflows the phone screen.');
   assert(await page.locator('.chat-sheet [data-action="refreshRequestChat"]').count() === 0, 'Chat still exposes a manual refresh button.');
   assert(await page.evaluate(() => Boolean(window.__khadamatiChatPoll)), 'Chat automatic refresh did not start.');
-  assert(await page.locator('.chat-quick-replies button').count() >= 3, 'Chat quick replies are missing.');
-  await page.locator('.chat-quick-replies button').first().click();
+  assert(await page.locator('.chat-quick-replies button').count() >= 4, 'Chat quick replies or location sharing are missing.');
+  assert(await page.locator('[data-action="shareChatLocation"]').count() === 1, 'Chat location sharing action is missing.');
+  await page.locator('[data-action="shareChatLocation"]').click();
+  await page.waitForSelector('.chat-message.mine .chat-location-card');
+  assert((await page.locator('.chat-location-card').first().getAttribute('href')).includes('google.com/maps'), 'Shared chat location does not open in a maps application.');
+  await page.locator('.chat-quick-replies [data-action="chatQuickReply"]').first().click();
   assert(Boolean(await page.locator('#chatText').inputValue()), 'Quick reply did not fill the chat composer.');
   await page.locator('#chatText').fill('تم تأكيد الموعد');
   await page.locator('[data-action="sendChatMessage"]').click();
   await page.waitForSelector('.chat-message.mine');
   await page.locator('#chatImage').setInputFiles(path.join(__dirname, '..', 'app-icon-192.png'));
+  assert(await page.locator('#chatImage').evaluate(input => input.files?.length === 1), 'Chat image input did not retain the selected file.');
   await page.locator('#chatText').fill('صورة توضيحية');
   await page.locator('[data-action="sendChatMessage"]').click();
-  await page.waitForSelector('.chat-message.mine img');
+  await page.waitForFunction(() => Boolean(document.querySelector('.chat-message.mine img')), null, { timeout: 15000 }).catch(() => {});
+  const imageMessageState = await page.evaluate(() => ({
+    imageCount: document.querySelectorAll('.chat-message.mine img').length,
+    mineCount: document.querySelectorAll('.chat-message.mine').length,
+    composerText: document.querySelector('#chatText')?.value || '',
+    selectedFiles: document.querySelector('#chatImage')?.files?.length || 0,
+    sendBusy: document.querySelector('[data-action="sendChatMessage"]')?.dataset.busy || '',
+    toast: document.querySelector('#toastRoot .toast')?.textContent?.trim() || '',
+  }));
+  assert(imageMessageState.imageCount > 0, `Chat image was not sent: ${JSON.stringify(imageMessageState)}`);
   await page.locator('[data-action="toggleChatRecording"]').click();
   await page.waitForTimeout(900);
   await page.locator('[data-action="toggleChatRecording"]').click();

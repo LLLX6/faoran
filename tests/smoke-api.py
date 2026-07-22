@@ -429,6 +429,29 @@ def main():
     expect(status, message, {200}, "Request chat failed")
     assert not message["request"].get("phone"), "Chat consent exposed the phone"
 
+    status, location_message = request(
+        "/api/request/collaboration",
+        {
+            "id": request_id,
+            "action": "message",
+            "location": {"lat": 23.61, "lng": 58.24, "accuracy": 12, "label": "موقع الخدمة"},
+        },
+        user_token,
+    )
+    expect(status, location_message, {200}, "Chat location sharing failed")
+    saved_location = location_message["request"]["messages"][-1].get("location", {})
+    assert saved_location.get("lat") == 23.61 and saved_location.get("lng") == 58.24, "Chat location coordinates were not preserved"
+    assert saved_location.get("label") == "موقع الخدمة", "Chat location label was not preserved"
+
+    status, invalid_location_message = request(
+        "/api/request/collaboration",
+        {"id": request_id, "action": "message", "location": {"lat": 120, "lng": 58.24}},
+        user_token,
+    )
+    assert status == 400 and invalid_location_message.get("error") in {"invalid_number", "number_out_of_range", "invalid_location"}, (
+        f"Invalid chat location was accepted: HTTP {status} {invalid_location_message}"
+    )
+
     status, contact = request(
         "/api/request/collaboration",
         {"id": request_id, "action": "contact_consent", "chat": True, "whatsapp": True, "call": False},

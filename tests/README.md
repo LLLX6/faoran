@@ -30,7 +30,8 @@ node tests/performance-ui.js
 The UI flow covers Arabic RTL and English LTR, modal/map state restoration, live
 geolocation recentering, 320px mobile fit, offer comparison,
 consent-gated contact, text/image/voice chat, calendar export, arrival tracking,
-provider video, before/after media, subscriptions, finance, and visitor isolation.
+provider video, before/after media, subscriptions, finance, visitor isolation,
+and explicit location sharing inside an accepted request chat.
 The API/domain flows also verify map privacy, approved-provider availability,
 subscription service/category limits, registration, exact matching, active request visibility,
 the public request marketplace, provider recommendations and abuse controls,

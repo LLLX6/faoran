@@ -1,8 +1,9 @@
-const CACHE_NAME = 'khadamati-app-shell-v53-world-class';
+const CACHE_NAME = 'khadamati-app-shell-v54-public-release';
 const SHELL = [
   './',
   './index.html',
   './assets/styles/khadamati-v53.css',
+  './assets/styles/khadamati-v54.css',
   './app-icon-192.png',
   './app-icon-512.png',
   './assets/providers/omani-electrician-v53.webp',

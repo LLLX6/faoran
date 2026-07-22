@@ -250,6 +250,8 @@ def normalized_location(value):
         result["accuracy"] = finite_number(value.get("accuracy"), minimum=0, maximum=100_000)
     if value.get("updatedAt"):
         result["updatedAt"] = safe_text(value.get("updatedAt"), 50)
+    if value.get("label"):
+        result["label"] = safe_text(value.get("label"), 80)
     return result
 
 
@@ -4260,6 +4262,12 @@ class Handler(SimpleHTTPRequestHandler):
                 if not chat_allowed:
                     return self.send_json({"error": "chat_consent_required"}, 403)
                 text = str(data.get("text", "") or "").strip()[:1000]
+                try:
+                    location = normalized_location(data.get("location"))
+                except (DomainError, ValueError) as err:
+                    code = err.code if isinstance(err, DomainError) else str(err)
+                    status = err.status if isinstance(err, DomainError) else 400
+                    return self.send_json({"error": code}, status)
                 image_path = ""
                 audio_path = ""
                 message_id = slug("msg")
@@ -4276,7 +4284,7 @@ class Handler(SimpleHTTPRequestHandler):
                         )
                 except ValueError as err:
                     return self.send_json({"error": str(err)}, 400)
-                if not text and not image_path and not audio_path:
+                if not text and not image_path and not audio_path and not location:
                     return self.send_json({"error": "empty_message"}, 400)
                 messages = list(item.get("messages") or [])
                 message = {
@@ -4286,6 +4294,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "text": text,
                     "image": image_path,
                     "audio": audio_path,
+                    "location": location,
                     "createdAt": datetime.now(UTC).isoformat(),
                 }
                 messages.append(message)
@@ -4302,7 +4311,7 @@ class Handler(SimpleHTTPRequestHandler):
                         "SELECT name FROM providers WHERE id=?", (provider_id,)
                     ).fetchone()
                     sender_name = provider_row["name"] if provider_row else "مزود الخدمة"
-                preview = text[:105] or ("صورة جديدة" if image_path else "رسالة صوتية جديدة")
+                preview = text[:105] or ("صورة جديدة" if image_path else "رسالة صوتية جديدة" if audio_path else "موقع جديد")
                 create_notification(
                     con, target_kind, target_id, f"رسالة جديدة من {sender_name}",
                     f"{item.get('serviceName') or 'طلب خدمة'} • {preview}",
