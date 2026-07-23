@@ -224,6 +224,27 @@ def main():
     )
     expect(status, provider_login, {200}, "Provider login with a local 8-digit phone failed")
     provider_token = provider_login["token"]
+    status, upgraded_provider_state = request("/api/bootstrap", token=provider_token)
+    expect(status, upgraded_provider_state, {200}, "Provider state after plan activation failed")
+    upgraded_provider = upgraded_provider_state.get("currentProvider", {})
+    assert upgraded_provider.get("packageId") == "professional_12m", "Admin plan activation did not reach the provider account"
+    assert upgraded_provider.get("subscriptionState") in {"active", "expiring", "grace"}, "Activated plan did not grant provider entitlements"
+
+    status, provider_upgrade_request = request(
+        "/api/provider/subscription-request",
+        {"packageId": "professional_12m"},
+        provider_token,
+    )
+    expect(status, provider_upgrade_request, {200}, "Provider plan request failed")
+    provider_upgrade_id = provider_upgrade_request.get("subscriptionId")
+    assert provider_upgrade_id, "Provider plan request returned no subscription identifier"
+
+    status, admin_after_upgrade = request("/api/admin/session", token=admin_token)
+    expect(status, admin_after_upgrade, {200}, "Admin state after provider plan request failed")
+    assert any(
+        item.get("type") == "subscription" and item.get("relatedId") == provider_upgrade_id
+        for item in admin_after_upgrade.get("notifications", [])
+    ), "Provider plan request did not reach administration notifications"
 
     status, formatted_provider_login = request(
         "/api/provider/login", {"phone": "+968 9555 0991", "pin": provider_pin}
@@ -265,6 +286,42 @@ def main():
     )
     expect(status, user, {200}, "User login failed")
     user_token = user["token"]
+
+    status, recovery = request(
+        "/api/recovery/request",
+        {"kind": "user", "phone": "96895550992"},
+    )
+    expect(status, recovery, {200, 202}, "Account recovery request failed")
+    recovery_id = recovery.get("recoveryId")
+    assert recovery_id and "codeHash" not in recovery, "Recovery response is missing or leaks a hash"
+
+    status, admin_recovery_state = request("/api/admin/session", token=admin_token)
+    expect(status, admin_recovery_state, {200}, "Admin recovery queue failed")
+    pending_recoveries = admin_recovery_state.get("adminEntities", {}).get("passwordRecoveries", [])
+    assert any(item.get("id") == recovery_id for item in pending_recoveries), "Recovery request is missing from management"
+    assert all("code_hash" not in item and "codeHash" not in item for item in pending_recoveries), "Recovery queue leaked a verification hash"
+
+    status, issued_recovery = request(
+        "/api/admin/recovery-code",
+        {"id": recovery_id},
+        admin_token,
+    )
+    expect(status, issued_recovery, {200}, "Management could not issue a temporary recovery code")
+    temporary_code = issued_recovery.get("temporaryCode", "")
+    assert len(temporary_code) == 6 and temporary_code.isdigit(), "Temporary recovery code is invalid"
+    assert issued_recovery.get("whatsappMessage") and temporary_code in issued_recovery["whatsappMessage"], "Ready WhatsApp recovery message is incomplete"
+
+    status, completed_recovery = request(
+        "/api/recovery/complete",
+        {"recoveryId": recovery_id, "code": temporary_code, "pin": "8642"},
+    )
+    expect(status, completed_recovery, {200}, "Temporary recovery code could not reset the account PIN")
+    status, recovered_user = request(
+        "/api/users/login",
+        {"phone": "96895550992", "name": "مستخدم اختبار الإنتاج", "pin": "8642"},
+    )
+    expect(status, recovered_user, {200}, "User could not sign in with the recovered PIN")
+    user_token = recovered_user["token"]
 
     status, created = request(
         "/api/user/requests",
@@ -540,6 +597,8 @@ def main():
                 "ok": True,
                 "public_privacy": True,
                 "provider_registration": True,
+                "provider_upgrade_admin_notification": True,
+                "manual_recovery": True,
                 "exact_matching": True,
                 "request_marketplace": True,
                 "active_request_visibility": True,

@@ -104,7 +104,7 @@ async function clickAdminTab(page, tab) {
       return json({ token: 'ui-user-token', user: { id: 'ui-user', phone: '96895550001', name: 'مستخدم الاختبار الآلي', gov: 'مسقط', wilayah: 'السيب', pinConfigured: true } });
     }
     if (url.pathname === '/api/provider/login') {
-      return json({ token: 'ui-provider-token', provider: { id: 'p1', name: 'سالم البلوشي', phone: '96891234567', gov: 'مسقط', wilayah: 'السيب', areas: ['السيب'], bio: 'كهربائي منازل بخبرة وعناية', hours: 'الأحد - الخميس: 8:00 ص - 8:00 م', status: 'available', active: true, verified: true, featured: true, mapVisible: true, location: { lat: 23.61, lng: 58.24, updatedAt: '2026-07-18T08:00:00Z' }, packageId: 'professional_12m', subscriptionState: 'active', services: [{ id: 'p1s1', catId: 'homecare', serviceId: 'electrician', priceFrom: 8, active: true, areas: ['السيب'] }], workImages: [], documents: [], rating: 4.9, reviews: 12, qualityScore: 94, pinConfigured: true } });
+      return json({ token: 'ui-provider-token', provider: { id: 'p1', name: 'سالم البلوشي', phone: '96891234567', gov: 'مسقط', wilayah: 'السيب', areas: ['السيب'], bio: 'كهربائي منازل بخبرة وعناية', hours: 'الأحد - الخميس: 8:00 ص - 8:00 م', status: 'available', active: true, verified: true, featured: true, mapVisible: true, location: { lat: 23.61, lng: 58.24, updatedAt: '2026-07-18T08:00:00Z' }, packageId: 'professional_12m', subscriptionState: 'active', services: [{ id: 'p1s1', catId: 'homecare', serviceId: 'electrician', priceFrom: 8, active: true, areas: ['السيب'] }], workImages: ['app-icon-512.png', 'app-icon-192.png'], documents: [], rating: 4.9, reviews: 12, qualityScore: 94, pinConfigured: true } });
     }
     if (url.pathname === '/api/provider/profile') return json({});
     if (url.pathname === '/api/admin/login') return json({ token: 'ui-admin-token', user: { id: 'ui-admin', name: 'إدارة خدماتي', role: 'super_admin' } });
@@ -384,6 +384,7 @@ async function clickAdminTab(page, tab) {
   await page.waitForSelector('.image-editor-v57');
   assert(await page.locator('.image-editor-v57 [data-action="cropZoomDelta"]').count() === 2, 'The modern image editor must provide zoom-in and zoom-out controls.');
   assert(await page.locator('.image-editor-v57 [data-action="rotateCrop"]').count(), 'The modern image editor is missing rotation controls.');
+  assert(Number(await page.locator('#cropZoom').getAttribute('min')) < 1, 'The image editor cannot zoom out enough to show a full portrait.');
   await capture(page, '01f-image-editor');
   await page.locator('.image-editor-v57 [data-action="closeImageEditor"]').click();
   assert(await page.locator('.image-input-previews[data-for="regAvatar"] [data-action="editSelectedImage"]').count(), 'Uploaded image preview is missing its edit action.');
@@ -424,8 +425,12 @@ async function clickAdminTab(page, tab) {
   assert(await page.locator('.week-calendar').count(), 'Provider weekly calendar is missing.');
   assert(await page.locator('.quote-template-grid').count(), 'Provider quote templates are missing.');
   assert(await page.locator('.provider-request-dock').count(), 'Fixed provider request dock is missing.');
+  assert(await page.locator('.provider-topbar .provider-brand').isVisible(), 'Provider header identity is hidden.');
+  assert(await page.locator('.provider-topbar .provider-brand > .brand-mark.image-mark').isVisible(), 'Provider header logo is hidden on a narrow phone.');
+  assert(await page.locator('.provider-topbar .provider-brand > span:last-child').isVisible(), 'Provider name is hidden on a narrow phone.');
   const providerTopFits = await page.locator('.provider-topbar').evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
   assert(providerTopFits, 'Provider top bar overflows the mobile viewport.');
+  assert(await page.locator('.provider-top-actions > *').evaluateAll(items => items.every(item => { const box = item.getBoundingClientRect(); return box.left >= -1 && box.right <= window.innerWidth + 1; })), 'A provider header control leaves the mobile viewport.');
   const dockBox = await page.locator('.provider-request-dock').boundingBox();
   assert(dockBox && dockBox.x >= 0 && dockBox.x + dockBox.width <= VIEWPORT_WIDTH, 'Provider request dock is outside the viewport.');
   await capture(page, '02-provider-dashboard');
@@ -448,6 +453,14 @@ async function clickAdminTab(page, tab) {
     return copy.width > 80 && (copy.left >= icon.right - 1 || icon.left >= copy.right - 1);
   });
   assert(providerDockContentFits, 'Provider Opportunities icon overlaps its label.');
+  await page.locator('.provider-status-toggle').click();
+  await page.locator('.provider-status-toggle').click();
+  await page.locator('.provider-status-toggle').click();
+  await page.locator('.provider-top-actions [data-action="openNotifications"]').click();
+  await page.locator('[data-action="notificationCenterTab"][data-value="updates"]').click();
+  assert(await page.locator('.notification-center-sheet').getByText(/Your card is visible to customers|Your card was temporarily paused/i).count(), 'Stored provider status notifications were not translated into English.');
+  assert(await page.locator('.notification-center-sheet').getByText(/بطاقتك متاحة للعملاء|تم إيقاف بطاقتك مؤقتاً/i).count() === 0, 'Arabic system notification copy leaked into English mode.');
+  await page.locator('[data-action="closeModal"]').click();
   await capture(page, '02a-provider-english');
   await page.locator('.provider-top-actions [data-action="toggleLang"]').click();
   await page.waitForTimeout(100);
@@ -613,6 +626,14 @@ async function clickAdminTab(page, tab) {
   await page.locator('[data-action="providerDetails"][data-id="p1"]').first().click();
   assert(await page.locator('.provider-intro-video').count(), 'Provider introduction video is missing from the public profile.');
   assert(await page.locator('.before-after-card').count(), 'Before/after gallery is missing from the public profile.');
+  assert(await page.locator('.provider-detail-sheet [data-action="openWorkImage"]').count() === 2, 'Provider work photos are not openable controls.');
+  const workDisclosure = page.locator('.provider-detail-disclosure').filter({ has: page.locator('[data-action="openWorkImage"]') });
+  if (!(await workDisclosure.getAttribute('open'))) await workDisclosure.locator('summary').click();
+  await page.locator('.provider-detail-sheet [data-action="openWorkImage"]').first().click();
+  await page.waitForSelector('.media-viewer');
+  assert(await page.locator('.media-viewer-stage img').isVisible(), 'The full work-image viewer did not show the selected photo.');
+  await page.locator('[data-action="closeMediaViewer"]').click();
+  assert(await page.locator('.provider-detail-sheet').count(), 'Closing a work photo did not restore the same provider profile.');
   await page.locator('.provider-detail-sheet [data-action="openProviderOnMap"]').click();
   await page.waitForSelector('.live-map-full .map-my-location');
   await page.locator('.live-map-full .map-my-location').click();
@@ -701,6 +722,11 @@ async function clickAdminTab(page, tab) {
   assert(await page.locator('[data-action="exportReportsCsv"]').count(), 'CSV export is missing from reports.');
   assert(await page.locator('[data-action="exportReportsWord"]').count(), 'Word export is missing from reports.');
   assert(await page.locator('[data-action="printReports"]').count(), 'Print/PDF export is missing from reports.');
+  await page.locator('[data-action="printReports"]').click();
+  await page.waitForSelector('.report-preview iframe');
+  assert(await page.locator('[data-action="closeReportPreview"]').isVisible(), 'Report preview has no visible return control.');
+  await page.locator('[data-action="closeReportPreview"]').click();
+  assert(await page.locator('.report-command-bar').count(), 'Closing the report preview did not return to reports.');
   await capture(page, '03-admin-reports');
   await clickAdminTab(page, 'quality');
   assert(await page.locator('.system-health').count(), 'System health monitoring panel is missing.');

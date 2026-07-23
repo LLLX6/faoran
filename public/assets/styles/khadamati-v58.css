@@ -1,0 +1,138 @@
+/* Khadamati v58: release reliability, media viewers, and narrow-phone safety. */
+
+/* Work photos behave as real controls while retaining the existing gallery rhythm. */
+.work-gallery-item{
+  position:relative;
+  display:block;
+  min-width:0;
+  padding:0;
+  border:0;
+  border-radius:16px;
+  overflow:hidden;
+  background:var(--panel2);
+  box-shadow:var(--shadow2);
+  cursor:zoom-in;
+}
+.work-gallery-item img{display:block;width:100%;height:100%;margin:0;box-shadow:none!important;transition:transform .18s ease}
+.work-gallery-item:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:3px}
+@media(hover:hover){.work-gallery-item:hover img{transform:scale(1.025)}}
+
+/* Full work-image viewer. It is mounted separately so closing it restores provider details. */
+.media-viewer-backdrop,.report-preview-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:190;
+  display:grid;
+  place-items:center;
+  padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px));
+  background:rgba(3,14,24,.82);
+  backdrop-filter:blur(16px);
+}
+.media-viewer{
+  width:min(920px,100%);
+  height:min(820px,calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:22px;
+  background:#071823;
+  box-shadow:0 28px 90px rgba(0,0,0,.42);
+  color:#fff;
+}
+.media-viewer>header,.media-viewer>footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-width:0;
+  padding:10px 12px;
+  background:rgba(7,24,35,.92);
+}
+.media-viewer>header>div{display:grid;min-width:0;gap:1px}
+.media-viewer>header b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.92rem}
+.media-viewer>header small{color:rgba(255,255,255,.65);font-size:.68rem}
+.media-viewer .close-btn{flex:0 0 40px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.16)}
+.media-viewer-stage{min-width:0;min-height:0;display:grid;place-items:center;padding:8px;background:radial-gradient(circle at center,rgba(27,92,108,.2),transparent 58%),#041019}
+.media-viewer-stage img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;object-position:center;border-radius:12px}
+.media-viewer>footer{justify-content:center}
+.media-viewer-nav{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.17);border-radius:13px;background:rgba(255,255,255,.1);color:#fff}
+.media-viewer-nav:first-child svg{transform:rotate(180deg)}
+[dir="rtl"] .media-viewer-nav:first-child svg{transform:none}
+[dir="rtl"] .media-viewer-nav:last-child svg{transform:rotate(180deg)}
+.media-viewer-dots{display:flex;align-items:center;justify-content:center;gap:5px;max-width:min(54vw,420px);overflow:auto;scrollbar-width:none}
+.media-viewer-dots::-webkit-scrollbar{display:none}
+.media-viewer-dots button{width:7px;height:7px;flex:0 0 7px;padding:0;border:0;border-radius:999px;background:rgba(255,255,255,.32)}
+.media-viewer-dots button.active{width:22px;flex-basis:22px;background:#5fe1cc}
+
+/* Report preview remains in-app and always exposes a return control. */
+.report-preview-backdrop{background:rgba(3,14,24,.7)}
+.report-preview{
+  width:min(1080px,100%);
+  height:min(900px,calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:var(--panel);
+  box-shadow:0 28px 90px rgba(0,0,0,.32);
+}
+.report-preview>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+.report-preview>header>div:first-child{display:grid;min-width:0;gap:1px}
+.report-preview>header b{font-size:.9rem}.report-preview>header small{font-size:.65rem;color:var(--muted)}
+.report-preview>header .row-actions{flex-wrap:nowrap}
+.report-preview iframe{width:100%;height:100%;min-height:0;border:0;background:#fff}
+
+/* Secure account-recovery handoff. The temporary code is deliberately shown once. */
+.recovery-queue{display:grid;gap:8px;margin-top:10px}
+.recovery-code-display{display:grid;justify-items:center;gap:6px;margin:14px 0;padding:17px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:16px;background:color-mix(in srgb,var(--accent) 7%,var(--panel))}
+.recovery-code-display code{direction:ltr;font:950 clamp(1.45rem,7vw,2.25rem)/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.2em;color:var(--brand2)}
+.recovery-code-display small{color:var(--muted);text-align:center}
+
+/* Onboarding facts should support the message, not dwarf it. */
+.onboarding-benefit{min-height:42px!important;padding:7px 8px!important;gap:7px!important;line-height:1.35!important}
+.onboarding-benefit>span{width:27px!important;height:27px!important;flex:0 0 27px!important;border-radius:8px!important}
+.onboarding-benefit>span svg{width:15px!important;height:15px!important}
+.onboarding-benefit>b{font-size:.69rem!important;font-weight:850!important}
+
+/* Header controls must remain inside 320px screens in both directions. */
+.provider-topbar .topbar-inner,.admin-topbar .topbar-inner{max-width:100%;min-width:0}
+.provider-topbar .provider-brand,.admin-topbar .brand{min-width:0;overflow:hidden}
+.provider-topbar .provider-top-actions,.admin-topbar .top-actions{min-width:0;max-width:100%}
+.provider-topbar .icon-btn,.admin-topbar .icon-btn,.admin-topbar .round-action{flex:0 0 auto}
+.admin-topbar .notification-badge,.provider-topbar .notification-badge{z-index:4}
+
+/* Cleaner localisation and disclosure geometry. */
+.notification-disclosure summary,.notification-copy,.notification-copy p{min-width:0}
+.notification-copy b,.notification-copy p{overflow-wrap:anywhere}
+.notification-disclosure[open] .notification-copy p{line-height:1.55}
+
+@media(max-width:560px){
+  .media-viewer-backdrop,.report-preview-backdrop{padding:max(6px,env(safe-area-inset-top,0px)) 0 0}
+  .media-viewer,.report-preview{width:100%;height:calc(100dvh - max(6px,env(safe-area-inset-top,0px)));max-height:none;border-radius:20px 20px 0 0;border-bottom:0}
+  .report-preview>header{padding-inline:9px}.report-preview>header small{display:none}.report-preview>header .ghost-btn{font-size:.63rem;padding:7px 8px}.report-preview>header .close-btn{width:38px;height:38px}
+  .onboarding-benefits{gap:6px!important}.onboarding-benefit{min-height:39px!important;padding:6px!important}.onboarding-benefit>b{font-size:.64rem!important}
+  .provider-topbar .topbar-inner{width:calc(100% - 16px)!important;padding:7px 0!important}
+  .provider-topbar .provider-top-actions{grid-template-columns:minmax(66px,1fr) repeat(4,36px)!important;gap:5px!important}
+  .provider-topbar .provider-top-actions .icon-btn{width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important}
+  .provider-topbar .provider-status-toggle{min-height:36px!important;padding:6px 7px!important;font-size:.66rem!important}
+  .provider-topbar .provider-brand .brand-mark.image-mark{width:40px!important;height:40px!important;flex-basis:40px!important}
+  .provider-topbar .provider-brand>span:last-child{max-width:calc(100vw - 78px)!important;font-size:.9rem!important}
+  .admin-topbar .topbar-inner{width:calc(100% - 16px)!important;height:58px!important;gap:7px!important}
+  .admin-topbar .brand{gap:6px!important;font-size:.9rem!important}.admin-topbar .brand-mark{width:38px!important;height:38px!important;flex:0 0 38px!important}
+  .admin-topbar .top-actions{gap:4px!important;overflow:visible!important}.admin-topbar .icon-btn,.admin-topbar .round-action{width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;border-radius:11px!important}
+}
+
+@media(max-width:350px){
+  .provider-topbar .provider-brand>.brand-mark.image-mark{display:grid!important}
+  .provider-topbar .provider-brand>span:last-child{display:block!important;max-width:calc(100vw - 76px)!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem!important}
+  .provider-topbar .provider-brand .brand-mark.image-mark{width:36px!important;height:36px!important;flex-basis:36px!important}
+  .provider-topbar .provider-top-actions{grid-template-columns:minmax(57px,1fr) repeat(4,32px)!important;gap:3px!important}
+  .provider-topbar .provider-top-actions .icon-btn{width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important}
+  .provider-topbar .provider-status-toggle{min-height:32px!important;font-size:.58rem!important}.provider-topbar .provider-status-toggle:before{width:5px;height:5px;flex-basis:5px}
+  .admin-topbar .brand>span:last-child{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.admin-topbar .icon-btn,.admin-topbar .round-action{width:33px!important;height:33px!important;min-width:33px!important;min-height:33px!important}
+  .onboarding-benefits{grid-template-columns:1fr 1fr!important}.onboarding-benefit:nth-child(n+3){display:none!important}
+}
+
+@media(prefers-reduced-motion:reduce){.work-gallery-item img{transition:none}}

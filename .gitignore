@@ -11,6 +11,8 @@ public/uploads/*
 backups/
 __*.sqlite3
 __*-uploads/
+__*.out
+__*.err
 tests/__*.sqlite3
 tests/__*-uploads/
 tests/__*.out
@@ -18,5 +20,6 @@ tests/__*.err
 tests/__screens-*/
 tests/__debug*.png
 __screenshots-*/
+.pip-audit-cache*/
 v*-contact-sheet.jpg
 v*-mobile-contact-sheet.jpg

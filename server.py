@@ -2374,6 +2374,28 @@ def get_bootstrap(session=None):
                 "churnRate": round(100 * churned / subscription_total, 1),
                 "subscriptionStates": state_counts,
             }
+            if has_permission(session, "manage_admins"):
+                recovery_items = []
+                for recovery in con.execute(
+                    """SELECT id,account_kind,account_id,phone,attempts,expires_at,used_at,created_at
+                    FROM password_recoveries ORDER BY created_at DESC LIMIT 120"""
+                ):
+                    account_table = "providers" if recovery["account_kind"] == "provider" else "app_users"
+                    account = con.execute(
+                        f"SELECT name FROM {account_table} WHERE id=?", (recovery["account_id"],)
+                    ).fetchone()
+                    recovery_items.append({
+                        "id": recovery["id"],
+                        "accountKind": recovery["account_kind"],
+                        "accountId": recovery["account_id"],
+                        "name": account["name"] if account else "",
+                        "phone": recovery["phone"],
+                        "attempts": int(recovery["attempts"] or 0),
+                        "expiresAt": recovery["expires_at"],
+                        "usedAt": recovery["used_at"],
+                        "createdAt": recovery["created_at"],
+                    })
+                admin_entities["passwordRecoveries"] = recovery_items
             if has_permission(session, "manage_subscriptions"):
                 admin_entities.update({
                     "subscriptionEvents": [dict(r) for r in con.execute(
@@ -3233,21 +3255,28 @@ class Handler(SimpleHTTPRequestHandler):
                         {"error": "login_temporarily_locked", "retryAfter": lock_state["retryAfter"]},
                         429,
                     )
-                row = con.execute(
+                provider_candidates = list(con.execute(
                     """SELECT * FROM providers WHERE active=1 AND status!='deleted'
-                    AND (phone=? OR phone=?)""",
+                    AND (phone=? OR phone=?) ORDER BY created_at DESC""",
                     (phone, phone.replace("968", "", 1)),
-                ).fetchone()
-                if not row:
-                    row = next(
-                        (
-                            candidate for candidate in con.execute(
-                                "SELECT * FROM providers WHERE active=1 AND status!='deleted'"
-                            )
-                            if phone_matches(candidate["phone"], phone)
-                        ),
-                        None,
-                    )
+                ))
+                if not provider_candidates:
+                    provider_candidates = [
+                        candidate for candidate in con.execute(
+                            "SELECT * FROM providers WHERE active=1 AND status!='deleted' ORDER BY created_at DESC"
+                        )
+                        if phone_matches(candidate["phone"], phone)
+                    ]
+                # A phone can legitimately own both a user account and a provider account, and
+                # historical provider rows may share a normalized number. Select the row whose
+                # hash verifies instead of failing against whichever row SQLite returned first.
+                row = next(
+                    (
+                        candidate for candidate in provider_candidates
+                        if candidate["pin_hash"] and verify_secret(pin, candidate["pin_hash"])
+                    ),
+                    provider_candidates[0] if provider_candidates else None,
+                )
                 team_row = con.execute(
                     """SELECT tm.*,p.name provider_name FROM provider_team_members tm
                     JOIN providers p ON p.id=tm.provider_id
@@ -4521,15 +4550,18 @@ class Handler(SimpleHTTPRequestHandler):
             create_notification(
                 con, "admin", "", "طلب استعادة رمز",
                 f"{row['name']} - {phone}", type_="security", related_id=row["id"],
-                priority="high", action_text="فتح الحساب",
-                action_route=f"admin:{kind}:{row['id']}",
+                priority="high", action_text="مراجعة الاسترجاع",
+                action_route=f"admin:recovery:{recovery_id}",
             )
         delivery = send_whatsapp(phone, f"رمز استعادة حساب خدماتي هو: {code}. صالح لمدة 10 دقائق.")
-        if APP_ENV == "production" and not delivery.get("ok"):
-            with db() as con:
-                con.execute("DELETE FROM password_recoveries WHERE id=?", (recovery_id,))
-            return self.send_json({"error": "otp_delivery_unavailable"}, 503)
-        response = {"ok": True, "recoveryId": recovery_id, "deliveryConfigured": delivery.get("configured", False)}
+        # Keep the recovery request for secure manual handling when the messaging
+        # integration is unavailable. The code remains hashed and is never exposed.
+        response = {
+            "ok": True,
+            "recoveryId": recovery_id,
+            "deliveryConfigured": bool(delivery.get("ok")),
+            "manualReview": not bool(delivery.get("ok")),
+        }
         if APP_ENV != "production" and development_code:
             response["debugCode"] = code
         return self.send_json(response)
@@ -5069,6 +5101,7 @@ class Handler(SimpleHTTPRequestHandler):
             "/api/admin/team": "manage_team",
             "/api/admin/branches": "manage_team",
             "/api/admin/contact-consents": "manage_consent",
+            "/api/admin/recovery-code": "manage_admins",
             "/api/admin/settings": "manage_settings",
             "/api/admin/users": "manage_admins",
             "/api/admin/test-whatsapp": "manage_settings",
@@ -5289,6 +5322,43 @@ class Handler(SimpleHTTPRequestHandler):
                     recompute_provider_quality(con, row["provider_id"])
                 log_audit(con, session, "complaint.status.updated", complaint_id, status)
                 return self.send_json({"ok": True})
+            if path == "/api/admin/recovery-code":
+                recovery_id = safe_text(data.get("id"), 120)
+                recovery = con.execute(
+                    """SELECT * FROM password_recoveries
+                    WHERE id=? AND COALESCE(used_at,'')=''""",
+                    (recovery_id,),
+                ).fetchone()
+                if not recovery:
+                    return self.send_json({"error": "recovery_not_found"}, 404)
+                account_table = "providers" if recovery["account_kind"] == "provider" else "app_users"
+                account = con.execute(
+                    f"SELECT name FROM {account_table} WHERE id=?", (recovery["account_id"],)
+                ).fetchone()
+                if not account:
+                    return self.send_json({"error": "account_not_found"}, 404)
+                temporary_code = f"{secrets.randbelow(1_000_000):06d}"
+                expires_at = iso_datetime(minutes=10)
+                con.execute(
+                    """UPDATE password_recoveries SET code_hash=?,attempts=0,expires_at=?
+                    WHERE id=?""",
+                    (hash_pin(temporary_code), expires_at, recovery_id),
+                )
+                message = (
+                    f"مرحباً {account['name']}، رمز التحقق المؤقت لاستعادة حساب خدماتي هو: "
+                    f"{temporary_code}. صالح لمدة 10 دقائق. لا تشاركه مع أي شخص آخر."
+                )
+                log_audit(con, session, "recovery.code.issued", recovery_id, recovery["account_id"])
+                return self.send_json({
+                    "ok": True,
+                    "recoveryId": recovery_id,
+                    "temporaryCode": temporary_code,
+                    "expiresAt": expires_at,
+                    "phone": recovery["phone"],
+                    "name": account["name"],
+                    "accountKind": recovery["account_kind"],
+                    "whatsappMessage": message,
+                })
             if path == "/api/admin/packages":
                 package_id = str(data.get("id", "") or "")
                 if package_id not in PLAN_IDS:
